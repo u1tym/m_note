@@ -1,0 +1,100 @@
+create schema note;
+
+create domain note.parts_type as text
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url'))
+;
+
+-- フォルダ管理
+--
+-- deleted_number
+--     値0     = 削除されていない状態
+--     値1以上 = 削除されている状態
+-- 削除処理
+--     aid, parent, nameでのdeleted_number最大値+1の値で、deleted_numberを更新する
+create table note.folder (
+    id             serial  primary key,        -- 主キー
+    aid            integer not null,           -- アカウントID
+    parent         integer null,               -- 親フォルダの主キー
+    name           text    not null,           -- フォルダ名称
+    dorder         integer not null,           -- 表示順
+    
+    deleted_number integer not null default 0, -- 削除番号
+
+    -- アカウントID 外部キー
+    constraint fk_note_folder_aid
+        foreign key (aid)
+        references accounts(id),
+
+    -- 親フォルダ 外部キー
+    constraint fk_note_folder_parent
+        foreign key (parent)
+        references note.folder(id),
+
+    -- フォルダ名称 唯一性
+    constraint uq_note_folder_name
+        unique (aid, parent, deleted_number, name),
+
+    -- 表示順 唯一性
+    constraint uq_note_folder_dorder
+        unique (aid, parent, dorder)
+);
+
+-- ファイル管理
+--
+-- deleted_number
+--     値0     = 削除されていない状態
+--     値1以上 = 削除されている状態
+-- 削除処理
+--     aid, parent, titleでのdeleted_number最大値+1の値で、deleted_numberを更新する
+create table note.file (
+    id             serial   primary key,       -- 主キー
+    aid            integer  not null,          -- アカウントID
+    
+    belong         integer not null,           -- 所属フォルダ
+    title          text    not null,           -- ファイルタイトル
+    dorder         integer not null,           -- 表示順
+    
+    deleted_number integer not null default 0, -- 削除番号
+
+    -- アカウントID 外部キー
+    constraint fk_note_file_aid
+        foreign key (aid)
+        references accounts(id),
+
+    -- 所属フォルダ 外部キー
+    constraint fk_note_file_belong
+        foreign key (belong)
+        references note.folder(id),
+
+    -- タイトル 唯一性
+    constraint uq_note_file_title
+        unique (aid, belong, deleted_number, title),
+
+    -- 表示順 唯一性
+    constraint uq_note_file_dorder
+        unique (aid, belong, dorder)
+);
+
+-- ファイルパーツ
+create table note.parts (
+    id  serial primary key,                   -- 主キー
+    aid integer not null,                     -- アカウントID
+
+    file       integer not null,              -- 所属ファイル
+    dorder     integer not null,              -- 表示順
+    is_deleted bool not null,                 -- 削除フラグ
+
+    ptype      note.parts_type not null,
+    data       text            not null,
+
+    constraint fk_note_parts_aid
+        foreign key (aid)
+        references accounts(id),
+    constraint fk_note_parts_file
+        foreign key (file)
+        references note.file(id),
+    constraint uq_note_parts_dorder
+        unique (aid, file, dorder)
+);
+
+    
