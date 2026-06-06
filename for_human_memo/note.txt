@@ -169,6 +169,9 @@ A-2. ファイル取得
       ]
     }
 
+  処理内容
+    アカウントIDを取得する
+    note.folder、note.file、note.partsを検索する。
 
 B-1. フォルダ作成
 B-2. フォルダ削除
