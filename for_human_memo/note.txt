@@ -1,0 +1,189 @@
+DBはPostgreSQLで、既存で、レイアウトは以下
+
+create domain note.parts_type as text
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url'))
+;
+
+-- フォルダ管理
+--
+-- deleted_number
+--     値0     = 削除されていない状態
+--     値1以上 = 削除されている状態
+-- 削除処理
+--     aid, parent, nameでのdeleted_number最大値+1の値で、deleted_numberを更新する
+create table note.folder (
+    id             serial  primary key,        -- 主キー
+    aid            integer not null,           -- アカウントID
+    parent         integer null,               -- 親フォルダの主キー
+    name           text    not null,           -- フォルダ名称
+    dorder         integer not null,           -- 表示順
+    
+    deleted_number integer not null default 0, -- 削除番号
+
+    -- アカウントID 外部キー
+    constraint fk_note_folder_aid
+        foreign key (aid)
+        references accounts(id),
+
+    -- 親フォルダ 外部キー
+    constraint fk_note_folder_parent
+        foreign key (parent)
+        references note.folder(id),
+
+    -- フォルダ名称 唯一性
+    constraint uq_note_folder_name
+        unique (aid, parent, deleted_number, name),
+
+    -- 表示順 唯一性
+    constraint uq_note_folder_dorder
+        unique (aid, parent, dorder)
+);
+
+-- ファイル管理
+--
+-- deleted_number
+--     値0     = 削除されていない状態
+--     値1以上 = 削除されている状態
+-- 削除処理
+--     aid, parent, titleでのdeleted_number最大値+1の値で、deleted_numberを更新する
+create table note.file (
+    id             serial   primary key,       -- 主キー
+    aid            integer  not null,          -- アカウントID
+    
+    belong         integer not null,           -- 所属フォルダ
+    title          text    not null,           -- ファイルタイトル
+    dorder         integer not null,           -- 表示順
+    
+    deleted_number integer not null default 0, -- 削除番号
+
+    -- アカウントID 外部キー
+    constraint fk_note_file_aid
+        foreign key (aid)
+        references accounts(id),
+
+    -- 所属フォルダ 外部キー
+    constraint fk_note_file_belong
+        foreign key (belong)
+        references note.folder(id),
+
+    -- タイトル 唯一性
+    constraint uq_note_file_title
+        unique (aid, belong, deleted_number, title),
+
+    -- 表示順 唯一性
+    constraint uq_note_file_dorder
+        unique (aid, belong, dorder)
+);
+
+-- ファイルパーツ
+create table note.parts (
+    id  serial primary key,                   -- 主キー
+    aid integer not null,                     -- アカウントID
+
+    file       integer not null,              -- 所属ファイル
+    dorder     integer not null,              -- 表示順
+    is_deleted bool not null,                 -- 削除フラグ
+
+    ptype      note.parts_type not null,
+    data       text            not null,
+
+    constraint fk_note_parts_aid
+        foreign key (aid)
+        references accounts(id),
+    constraint fk_note_parts_file
+        foreign key (file)
+        references note.file(id),
+    constraint uq_note_parts_dorder
+        unique (aid, file, dorder)
+);
+
+
+DBの接続先は、.envで作成して。
+初期値は、
+Server: localhost
+Database: tamtdb
+Port: 5432
+Username: tamtuser
+Password: TAMTTAMT
+にして
+
+
+pythonで、型ヒント句付けて
+fastapiでAPIを作成して。
+
+共通事項
+ JWTのusername=accounts.usernameを条件に、取得したaccounts.idをアカウントIDとする。
+ JWTの詳細はJWT_USERNAME_TECH_SPEC.mdを参照のこと
+
+A-1. アイテム一覧取得
+  Input
+    {
+      folder_id = N,
+      include_deleted = true/false
+    }
+    
+    folder_id: 対象フォルダID
+    include_deleted: 削除済み対象フラグ
+
+  Output
+    {
+      parent = {
+        id = A,
+        name = BBB
+      },
+      folder = [
+        { id = N, dorder = M, name = xxx },
+        ...
+      ],
+      file = [
+        { id = N, dorder = M, title = xxx },
+        ...
+      ]
+    }
+
+  処理内容
+    アカウントIDを取得する
+    note.folder、note.fileを検索する。
+    note.folderの情報をfolder、note.fileの情報をfileに格納する。
+    応答MSGを送信する。
+
+
+A-2. ファイル取得
+  Input
+    {
+      file_id = N
+    }
+    file_id: 対象ファイルID
+
+  Output
+    {
+      id = N,
+      belong = {
+        id = M,
+        name = xxx
+      },
+      title = yyy,
+      parts = [
+        { id = n1, dorder = d1, ptype = p1, data = dt1 },
+        ...
+      ]
+    }
+
+
+B-1. フォルダ作成
+B-2. フォルダ削除
+B-3. フォルダ名リネーム
+B-4. フォルダ移動
+B-5. フォルダ表示順入れ替え
+
+C-1. ファイル作成
+C-2. ファイル削除
+C-3. ファイル名リネーム
+C-4. ファイル移動
+C-5. ファイル表示順入れ替え
+
+D-1. パーツ作成
+D-2. パーツ削除
+D-3. パーツ編集
+D-4. パーツ表示順入れ替え
+
