@@ -1,4 +1,4 @@
-DBはPostgreSQLで、既存で、レイアウトは以下
+DBはPostgreSQLで、レイアウトは以下
 
 create domain note.parts_type as text
     check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url'))
@@ -12,9 +12,9 @@ create domain note.parts_type as text
 -- 削除処理
 --     aid, parent, nameでのdeleted_number最大値+1の値で、deleted_numberを更新する
 create table note.folder (
-    id             serial  primary key,        -- 主キー
+    id             serial  primary key,        -- フォルダID
     aid            integer not null,           -- アカウントID
-    parent         integer null,               -- 親フォルダの主キー
+    parent         integer null,               -- 親フォルダのフォルダID
     name           text    not null,           -- フォルダ名称
     dorder         integer not null,           -- 表示順
     
@@ -47,10 +47,10 @@ create table note.folder (
 -- 削除処理
 --     aid, parent, titleでのdeleted_number最大値+1の値で、deleted_numberを更新する
 create table note.file (
-    id             serial   primary key,       -- 主キー
+    id             serial   primary key,       -- ファイルID
     aid            integer  not null,          -- アカウントID
     
-    belong         integer not null,           -- 所属フォルダ
+    belong         integer not null,           -- 所属するフォルダID
     title          text    not null,           -- ファイルタイトル
     dorder         integer not null,           -- 表示順
     
@@ -77,10 +77,10 @@ create table note.file (
 
 -- ファイルパーツ
 create table note.parts (
-    id  serial primary key,                   -- 主キー
+    id  serial primary key,                   -- パーツID
     aid integer not null,                     -- アカウントID
 
-    file       integer not null,              -- 所属ファイル
+    file       integer not null,              -- 所属するファイルのファイルID
     dorder     integer not null,              -- 表示順
     is_deleted bool not null,                 -- 削除フラグ
 
@@ -112,10 +112,17 @@ pythonで、型ヒント句付けて
 fastapiでAPIを作成して。
 
 共通事項
- JWTのusername=accounts.usernameを条件に、取得したaccounts.idをアカウントIDとする。
- JWTの詳細はJWT_USERNAME_TECH_SPEC.mdを参照のこと
+  JWTのusername=accounts.usernameを条件に、取得したaccounts.idをアカウントIDとする。
+  JWTの詳細はJWT_USERNAME_TECH_SPEC.mdを参照のこと
+
+  追加や更新対象のレコードは、自身のアカウントIDのレコードのみとする。
+  該当レコードが、自身のアカウントIDに無い場合には処理異常とする。
 
 A-1. アイテム一覧取得
+  処理概要
+    指定したフォルダに所属するフォルダ、ファイルの一覧を返す
+    削除済みを対象とするのか、対象から外すのかの指定を可能とする
+
   Input
     {
       folder_id = N,
@@ -128,31 +135,44 @@ A-1. アイテム一覧取得
   Output
     {
       parent = {
-        id = A,
-        name = BBB
+        id = n0,
+        name = nm0
       },
       folder = [
-        { id = N, dorder = M, name = xxx },
+        { id = fld_n1, dorder = fld_o1, name = fld_nm1, is_del = true/false },
         ...
       ],
       file = [
-        { id = N, dorder = M, title = xxx },
+        { id = fil_n1, dorder = fil_o1, title = fil_nm1, is_del = true/false },
         ...
       ]
     }
+    
+    parent.id: 対象フォルダID
+    parent.name: 対象フォルダのフォルダ名称
+    folder[n].id: フォルダID
+    folder[n].dorder: フォルダの表示順
+    folder[n].name: フォルダ名称
+    folder[n].is_del: 削除されたものであればtrue
+    file[n].id: ファイルID
+    file[n].dorder: ファイルの標示順
+    file[n].title: ファイル名称
+    file[n].is_del: 削除されたものであればtrue
 
   処理内容
     アカウントIDを取得する
-    note.folder、note.fileを検索する。
-    note.folderの情報をfolder、note.fileの情報をfileに格納する。
-    応答MSGを送信する。
+    note.folder、note.fileを検索し、対象のものを検索し、応答MSGを送信する。。
 
 
 A-2. ファイル取得
+  処理概要
+    指定されたファイルの情報を検索して返す。
+
   Input
     {
       file_id = N
     }
+
     file_id: 対象ファイルID
 
   Output
@@ -174,19 +194,146 @@ A-2. ファイル取得
     note.folder、note.file、note.partsを検索する。
 
 B-1. フォルダ作成
+  処理概要
+    フォルダを作成する
+  
+  Input
+    {
+      parent_id: N,
+      name: aaa
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+  
+  処理内容
+    アカウントIDを取得する。
+    note.folderにレコードを追加する。
+    dorderには、同一parentでの最大値+1を使用する。
+    deleted_numberは0を使用する。
+    同じアカウントIDで、同一parentで、deleted_number=0で、同一nameのレコードが既に存在している場合には、エラーを返す。
+
 B-2. フォルダ削除
-B-3. フォルダ名リネーム
-B-4. フォルダ移動
-B-5. フォルダ表示順入れ替え
+  処理概要
+    指定されたフォルダを削除状態にする
+  
+  Input
+    {
+      folder_id: n
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+  
+  処理内容
+    アカウントIDを取得する。
+    note.folderのdeleted_numberを更新する。
+    aid、parent、nameで、既に存在するdeleted_numberの値+1で、更新する。
+
+B-3. フォルダ削除解除
+  処理概要
+    指定されたフォルダの削除状態を解除する
+  
+  Input
+    {
+      folder_id: n
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+  
+  処理内容
+    アカウントIDを取得する。
+    note.folderのdeleted_numberを0で更新する。
+    aid、parent、nameで、既にdeleted_number=0のレコードが存在する場合には、処理異常とする。
+    
+B-4. フォルダ名リネーム
+  処理概要
+    指定されたフォルダを指定された名称に変更する
+  
+  Input
+    {
+      folder_id = N
+      name = aaaa
+    }
+  
+  Output
+    {
+      result = true/false
+      reason = 理由
+    }
+  
+  処理内容
+    アカウントIDを取得する
+    note.folderのnameを指定された値で更新する。
+    同じアカウントIDで、同一parentで、deleted_number=0で、同一nameのレコードが既に存在している場合には、エラーを返す。
+
+B-5. フォルダ移動
+  処理概要
+    フォルダを移動する
+  
+  Input
+    {
+      folder_id: n0
+      old_parent_id: n1
+      new_parent_id: n2
+    }
+  
+    folder_id: 対象フォルダID
+    old_parent_id: 移動元の親フォルダID
+    new_parent_id: 移動先の親フォルダID
+
+  Output
+    {
+      result: true/false
+      reason: 理由
+    }
+  
+  処理内容
+    アカウントIDを取得する
+    同じアカウントIDで、移動先のparentで、deleted_number=0で、同一nameのレコードが既に存在している場合には、エラーを返す。
+
+B-6. フォルダ表示順入れ替え
+  処理概要
+    指定したフォルダの表示順を入れ替える
+    
+  Input
+    {
+      parent_id: n0
+      folder_id_1: n1
+      folder_id_2: n2
+    }
+    
+  Output
+    {
+      result: true/false
+      reason: 理由
+    }
+    
+  処理内容
+    アカウントIDを取得する
+    指定された2つのフォルダIDのdorderを入れ替える
+
 
 C-1. ファイル作成
 C-2. ファイル削除
-C-3. ファイル名リネーム
-C-4. ファイル移動
-C-5. ファイル表示順入れ替え
+C-3. ファイル削除解除
+C-4. ファイル名リネーム
+C-5. ファイル移動
+C-6. ファイル表示順入れ替え
 
 D-1. パーツ作成
 D-2. パーツ削除
-D-3. パーツ編集
-D-4. パーツ表示順入れ替え
+D-3. パーツ削除解除
+D-4. パーツ編集
+D-5. パーツ表示順入れ替え
 
