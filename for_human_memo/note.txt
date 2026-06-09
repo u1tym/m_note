@@ -125,8 +125,8 @@ A-1. アイテム一覧取得
 
   Input
     {
-      folder_id = N,
-      include_deleted = true/false
+      folder_id: N,
+      include_deleted: true/false
     }
     
     folder_id: 対象フォルダID
@@ -134,16 +134,16 @@ A-1. アイテム一覧取得
 
   Output
     {
-      parent = {
-        id = n0,
-        name = nm0
+      parent: {
+        id: n0,
+        name: nm0
       },
-      folder = [
-        { id = fld_n1, dorder = fld_o1, name = fld_nm1, is_del = true/false },
+      folder: [
+        { id: fld_n1, dorder: fld_o1, name: fld_nm1, is_del: true/false },
         ...
       ],
-      file = [
-        { id = fil_n1, dorder = fil_o1, title = fil_nm1, is_del = true/false },
+      file: [
+        { id: fil_n1, dorder: fil_o1, title: fil_nm1, is_del: true/false },
         ...
       ]
     }
@@ -170,21 +170,21 @@ A-2. ファイル取得
 
   Input
     {
-      file_id = N
+      file_id: N
     }
 
     file_id: 対象ファイルID
 
   Output
     {
-      id = N,
-      belong = {
-        id = M,
-        name = xxx
+      id: N,
+      belong: {
+        id: M,
+        name: xxx
       },
-      title = yyy,
-      parts = [
-        { id = n1, dorder = d1, ptype = p1, data = dt1 },
+      title: yyy,
+      parts: [
+        { id: n1, dorder: d1, ptype: p1, data: dt1 },
         ...
       ]
     }
@@ -325,15 +325,187 @@ B-6. フォルダ表示順入れ替え
 
 
 C-1. ファイル作成
+  Input
+    {
+      folder_id = N,
+      title = aaa
+    }
+
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+
 C-2. ファイル削除
+  Input
+    {
+      file_id = N
+    }
+
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+
+  処理内容
+    アカウントIDを取得する。
+    note.fileのdeleted_numberを更新する。
+    aid、parent、titleで、既に存在するdeleted_numberの値+1で、更新する。
+    
 C-3. ファイル削除解除
+  Input
+    {
+      file_id: n
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+
+  処理内容
+    アカウントIDを取得する。
+    note.fileのdeleted_numberを0で更新する。
+    aid、parent、titleで、既にdeleted_number=0のレコードが存在する場合には、処理異常とする。
+  
 C-4. ファイル名リネーム
+  Input
+    {
+      file_id: N
+      name: aaaa
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+  
+  処理内容
+    アカウントIDを取得する
+    note.fileのtitleを指定された値で更新する。
+    同じアカウントIDで、同一parentで、deleted_number=0で、同一titleのレコードが既に存在している場合には、エラーを返す。
+
 C-5. ファイル移動
+  Input
+    {
+      file_id: n0
+      old_parent_id: n1
+      new_parent_id: n2
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 理由
+    }
+
+  処理内容
+    アカウントIDを取得する
+    同じアカウントIDで、移動先のparentで、deleted_number=0で、同一titleのレコードが既に存在している場合には、エラーを返す。
+
 C-6. ファイル表示順入れ替え
+  Input
+    {
+      parent_id: n0
+      file_id_1: n1
+      file_id_2: n2
+    }
+    
+  Output
+    {
+      result: true/false
+      reason: 理由
+    }
+    
+  処理内容
+    アカウントIDを取得する
+    指定された2つのファイルIDのdorderを入れ替える
 
 D-1. パーツ作成
+  Input
+    {
+      file_id: n
+      type: t1
+      data: d1
+    }
+    
+    t1="jpeg", "png", "binary" の場合、d1 = Base64文字列
+
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+
 D-2. パーツ削除
+  Input
+    {
+      parts_id: n
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+
+  処理内容
+    アカウントIDを取得する。
+    note.partsのis_deletedをtrueで更新する。
+
 D-3. パーツ削除解除
+  Input
+    {
+      parts_id: n
+    }
+  
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+
+  処理内容
+    アカウントIDを取得する。
+    note.partsのis_deletedをfalseで更新する。
+
 D-4. パーツ編集
+  Input
+    {
+      parts_id: n
+      type: t2
+      data: d2
+    }
+
+  Output
+    {
+      result: true/false
+      reason: 異常理由
+    }
+  
+  処理内容
+    アカウントIDを取得する。
+    note.partsを更新する。
+
 D-5. パーツ表示順入れ替え
+  Input
+    {
+      file_id: n0
+      parts_id_1: n1
+      parts_id_2: n2
+    }
+    
+  Output
+    {
+      result: true/false
+      reason: 理由
+    }
+    
+  処理内容
+    アカウントIDを取得する
+    指定された2つのパーツIDのdorderを入れ替える
 
