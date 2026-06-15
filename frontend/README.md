@@ -12,6 +12,7 @@ Vue 3 + TypeScript + Vite。スマホ向け UI を前提としています。
 | `VITE_MENU_PAGE_URL` | 戻るボタンの遷移先（例: `/mobile/login/#/menu`） |
 | `VITE_SKIP_SESSION_EXTEND` | `true` のとき NOTE API 前の `POST /refresh` をスキップ（デバッグ用） |
 | `VITE_NOTE_PROXY_TARGET` | 開発時プロキシ先（既定 `http://127.0.0.1:8000`） |
+| `VITE_BASE_PATH` | 本番の公開パス（例: `/mobile/notes/`、末尾スラッシュ必須） |
 
 ### デバッグ（`.env.development`）
 
@@ -42,8 +43,34 @@ uvicorn note_api.app.main:app --reload --host 127.0.0.1 --port 8000
 
 - `VITE_NOTE_ORIGIN=/api/note`
 - `VITE_LOGIN_ORIGIN=/api/auth`
+- `VITE_BASE_PATH=/mobile/notes/`（nginx の `location` と一致させる）
 - NOTE API 呼び出し前に `POST {VITE_LOGIN_ORIGIN}/refresh` で JWT 更新
 - 401 時は `VITE_LOGIN_PAGE_URL` へリダイレクト
+
+#### ビルドと nginx
+
+```powershell
+cd frontend
+cp .env.production.example .env.production   # 必要に応じて編集
+npm run build
+# dist/ をサーバへ配置
+```
+
+nginx 例（`dist` を `/var/www/notes/dist` に置いた場合）:
+
+```nginx
+location /mobile/notes/ {
+    alias /var/www/notes/dist/;
+    try_files $uri $uri/ /mobile/notes/index.html;
+}
+```
+
+**画面が真っ白なとき**
+
+1. ブラウザの開発者ツール → **Network** で `assets/*.js` が 404 になっていないか
+2. **Console** に JS エラーがないか
+3. `VITE_BASE_PATH` と nginx の `location` が一致しているか
+4. ルーターが `createWebHistory(import.meta.env.BASE_URL)` になっているか（`base` だけ設定してもルーター未設定だと真っ白になる）
 
 ## 開発
 

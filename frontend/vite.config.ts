@@ -20,10 +20,12 @@ export default defineConfig(({ mode }) => {
   const noteProxyTarget = normalizeProxyTarget(
     env.VITE_NOTE_PROXY_TARGET || DEFAULT_NOTE_PROXY_TARGET,
   )
+  // 本番サブパス配置用（例: /mobile/notes/）。未設定時は /
+  const base = env.VITE_BASE_PATH || '/'
 
   return {
     plugins: [vue()],
-    base: '/mobile/notes/',
+    base,
     server: {
       host: '127.0.0.1',
       port: 5173,
