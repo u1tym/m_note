@@ -14,3 +14,7 @@ export const skipSessionExtend =
 /** 別画面のログイン URL（未設定時はログイン API 起点を使用） */
 export const loginPageUrl =
   (import.meta.env.VITE_LOGIN_PAGE_URL as string | undefined) ?? `${loginOrigin}/login`
+
+/** メニュー画面 URL（戻るボタン遷移先） */
+export const menuPageUrl =
+  (import.meta.env.VITE_MENU_PAGE_URL as string | undefined) ?? '/mobile/login/#/menu'

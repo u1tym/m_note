@@ -23,6 +23,7 @@ import type { TreeFolderNode } from '../api/types'
 import { formatApiError } from '../api/errors'
 import FolderTree from '../components/FolderTree.vue'
 import FolderPicker from '../components/FolderPicker.vue'
+import BackToMenuButton from '../components/BackToMenuButton.vue'
 
 const router = useRouter()
 const roots = ref<TreeFolderNode[]>([])
@@ -235,6 +236,7 @@ onMounted(() => {
 <template>
   <div class="page">
     <header class="page-header">
+      <BackToMenuButton />
       <h1>メモ</h1>
     </header>
 
