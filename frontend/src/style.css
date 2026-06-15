@@ -1,0 +1,309 @@
+:root {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #f4f4f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e4e4e7;
+}
+
+.page {
+  padding: 12px 12px 24px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.back-btn {
+  margin-bottom: 8px;
+  border: none;
+  background: none;
+  color: #2563eb;
+  padding: 0;
+  cursor: pointer;
+}
+
+.status {
+  color: #71717a;
+}
+
+.status.error {
+  color: #dc2626;
+}
+
+.tree-toolbar {
+  margin-bottom: 12px;
+}
+
+.tree-toolbar button,
+.row-actions button,
+.add-part button,
+.part-header button {
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.tree-root,
+.tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.folder-row,
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+}
+
+.folder-row.selected {
+  background: #eff6ff;
+}
+
+.expand-btn,
+.folder-name,
+.file-name {
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.folder-name,
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.row-actions button {
+  padding: 4px 6px;
+  font-size: 0.75rem;
+}
+
+.empty-hint {
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.parts-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.part-card {
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.part-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.part-type {
+  font-size: 0.75rem;
+  color: #52525b;
+}
+
+.part-text {
+  width: 100%;
+  resize: vertical;
+}
+
+.part-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.binary-hint {
+  margin: 0;
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.add-part {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #e4e4e7;
+  padding-top: 16px;
+}
+
+.add-part h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.add-part .primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.danger {
+  color: #dc2626;
+}
+
+.binary-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.part-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.part-preview {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px dashed #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  overflow-x: auto;
+}
+
+.preview-label {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.md-preview :deep(h1),
+.md-preview :deep(h2),
+.md-preview :deep(h3) {
+  margin: 0.5em 0 0.25em;
+  font-size: 1em;
+}
+
+.md-preview :deep(p) {
+  margin: 0.25em 0;
+}
+
+.md-preview :deep(pre) {
+  overflow-x: auto;
+  padding: 8px;
+  background: #f4f4f5;
+  border-radius: 4px;
+}
+
+.tex-preview {
+  overflow-x: auto;
+}
+
+.picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+}
+
+.picker-dialog {
+  width: 100%;
+  max-width: 480px;
+  max-height: 70dvh;
+  background: #fff;
+  border-radius: 12px 12px 0 0;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.picker-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.picker-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.picker-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 10px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid #f4f4f5;
+}
+
+.picker-item:disabled {
+  color: #a1a1aa;
+  cursor: not-allowed;
+}
+
+.picker-empty {
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.picker-cancel {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+}

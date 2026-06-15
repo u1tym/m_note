@@ -12,10 +12,14 @@ class Settings(BaseSettings):
     db_user: str = "tamtuser"
     db_password: str = ""
 
-    secret_key: str
+    secret_key: str = "debug-local-only"
     algorithm: str = "HS256"
     cookie_name: str = "access_token"
     cors_origins: str = ""
+
+    # デバッグ時は JWT を使わず debug_aid をアカウント ID として使う（for_human_memo/02_note.txt）
+    debug: bool = False
+    debug_aid: int = 1
 
     @property
     def database_url(self) -> str:

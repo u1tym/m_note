@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,13 +15,17 @@ jwt_verifier = JWTVerifier(
     algorithm=settings.algorithm,
     cookie_name=settings.cookie_name,
 )
-require_jwt = jwt_verifier.dependency()
 
 
 def get_current_aid(
-    claims: Annotated[dict, Depends(require_jwt)],
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> int:
+    if settings.debug:
+        # for_human_memo/02_note.txt: .env の aid をそのまま使う（accounts 全カラムは参照しない）
+        return settings.debug_aid
+
+    claims = jwt_verifier.verify_request(request)
     username = jwt_verifier.get_username(claims)
     account = db.scalar(
         select(Account).where(Account.username == username, Account.is_deleted.is_(False))

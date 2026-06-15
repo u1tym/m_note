@@ -59,6 +59,10 @@ SECRET_KEY=change-me-in-production
 ALGORITHM=HS256
 COOKIE_NAME=access_token
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# ローカル開発のみ（本番では DEBUG=false または未設定）
+DEBUG=true
+DEBUG_AID=1
 ```
 
 | 変数 | 説明 |
@@ -68,6 +72,8 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 | `ALGORITHM` | JWT アルゴリズム（既定 `HS256`） |
 | `COOKIE_NAME` | JWT を載せる Cookie 名（既定 `access_token`） |
 | `CORS_ORIGINS` | ブラウザからアクセスする場合の許可オリジン（カンマ区切り） |
+| `DEBUG` | `true` のとき JWT 検証をスキップし、`DEBUG_AID` をアカウント ID として使う（**開発専用**） |
+| `DEBUG_AID` | `DEBUG=true` 時に使う `aid`（`accounts.id`）。既定 `1`。DB 参照は行わない |
 
 ### 5. データベースの準備
 
@@ -277,7 +283,7 @@ m_note/
 | 症状 | 確認事項 |
 |------|----------|
 | `ModuleNotFoundError` | `pip install -r requirements.txt` を実行したか |
-| `401 認証が必要です` | 認証 API でログイン済みか、Cookie が送信されているか |
+| `401 認証が必要です` | 認証 API でログイン済みか、Cookie が送信されているか。ローカル開発では `.env` に `DEBUG=true` と `DEBUG_AID` を設定する |
 | `401 無効なトークンです` | `.env` の `SECRET_KEY` が認証 API と一致しているか |
 | DB 接続エラー | PostgreSQL が起動しているか、`.env` の接続情報が正しいか |
 | CORS エラー | `CORS_ORIGINS` にフロントのオリジンが含まれているか、`credentials` が有効か |

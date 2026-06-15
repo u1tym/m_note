@@ -38,6 +38,15 @@
 | `COOKIE_NAME` | 既定 `access_token` |
 | `CORS_ORIGINS` | カンマ区切りオリジン（任意） |
 
+### 2.3 デバッグ（開発環境のみ）
+
+| 変数 | 説明 |
+|------|------|
+| `DEBUG` | `true` のとき JWT 検証を行わず、`DEBUG_AID` を `aid` として使う |
+| `DEBUG_AID` | `DEBUG=true` 時の `aid`。既定 `1`（DB 参照なし） |
+
+**本番では `DEBUG` を `false` にするか未設定にすること。** Cookie なしでも API が動作するため。
+
 ---
 
 ## 3. レスポンス形式
