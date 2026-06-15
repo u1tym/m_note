@@ -1,7 +1,10 @@
-from sqlalchemy import func, select
+from datetime import datetime
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from note_api.app.models import File, Folder, Part
+from note_api.app.config import get_settings
+from note_api.app.models import File, Folder, Part, PartRevision
 from note_api.app.schemas import (
     BelongInfo,
     FileGetResponse,
@@ -10,8 +13,13 @@ from note_api.app.schemas import (
     ItemsListResponse,
     ParentInfo,
     PartInfo,
+    PartRevisionGetResponse,
+    PartRevisionSummary,
     ResultResponse,
 )
+
+VERSIONED_PART_TYPES = frozenset({"jpeg", "png", "binary"})
+settings = get_settings()
 
 
 def _fail(reason: str) -> ResultResponse:
@@ -20,6 +28,76 @@ def _fail(reason: str) -> ResultResponse:
 
 def _ok() -> ResultResponse:
     return ResultResponse(result=True, reason=None)
+
+
+def _is_versioned_part_type(ptype: str) -> bool:
+    return ptype in VERSIONED_PART_TYPES
+
+
+def _validate_filename_for_type(ptype: str, filename: str) -> ResultResponse | None:
+    if _is_versioned_part_type(ptype) and not filename.strip():
+        return _fail("jpeg / png / binary には filename が必要です")
+    return None
+
+
+def _load_part_revisions(db: Session, parts_id: int) -> list[PartRevisionSummary]:
+    rows = db.scalars(
+        select(PartRevision)
+        .where(PartRevision.parts_id == parts_id)
+        .order_by(PartRevision.revision_number.desc())
+    ).all()
+    return [
+        PartRevisionSummary(
+            id=r.id,
+            revision_number=r.revision_number,
+            filename=r.filename,
+            ptype=r.ptype,
+            created_at=r.created_at.isoformat(sep=" ", timespec="seconds"),
+        )
+        for r in rows
+    ]
+
+
+def _save_part_revision(db: Session, aid: int, part: Part) -> None:
+    max_number = db.scalar(
+        select(func.coalesce(func.max(PartRevision.revision_number), 0)).where(
+            PartRevision.parts_id == part.id
+        )
+    )
+    revision = PartRevision(
+        aid=aid,
+        parts_id=part.id,
+        revision_number=(max_number or 0) + 1,
+        filename=part.filename,
+        ptype=part.ptype,
+        data=part.data,
+        created_at=datetime.now(),
+    )
+    db.add(revision)
+    db.flush()
+    _prune_part_revisions(db, part.id)
+
+
+def _prune_part_revisions(db: Session, parts_id: int) -> None:
+    max_keep = settings.parts_max_revisions
+    if max_keep <= 0:
+        db.execute(delete(PartRevision).where(PartRevision.parts_id == parts_id))
+        return
+
+    keep_ids = db.scalars(
+        select(PartRevision.id)
+        .where(PartRevision.parts_id == parts_id)
+        .order_by(PartRevision.revision_number.desc())
+        .limit(max_keep)
+    ).all()
+    if not keep_ids:
+        return
+    db.execute(
+        delete(PartRevision).where(
+            PartRevision.parts_id == parts_id,
+            PartRevision.id.not_in(keep_ids),
+        )
+    )
 
 
 def get_folder_or_none(db: Session, aid: int, folder_id: int) -> Folder | None:
@@ -188,7 +266,9 @@ def get_file_detail(
                 dorder=p.dorder,
                 ptype=p.ptype,
                 data=p.data,
+                filename=p.filename,
                 is_del=p.is_deleted,
+                revisions=_load_part_revisions(db, p.id) if _is_versioned_part_type(p.ptype) else [],
             )
             for p in parts
         ],
@@ -600,10 +680,17 @@ def get_part_or_none(db: Session, aid: int, parts_id: int) -> Part | None:
     return db.scalar(select(Part).where(Part.id == parts_id, Part.aid == aid))
 
 
-def create_part(db: Session, aid: int, file_id: int, ptype: str, data: str) -> ResultResponse:
+def create_part(
+    db: Session, aid: int, file_id: int, ptype: str, data: str, filename: str = ""
+) -> ResultResponse:
     file_row = db.scalar(select(File).where(File.id == file_id, File.aid == aid))
     if file_row is None:
         return _fail("指定されたファイルが見つかりません")
+
+    filename = filename.strip()
+    invalid = _validate_filename_for_type(ptype, filename)
+    if invalid is not None:
+        return invalid
 
     part = Part(
         aid=aid,
@@ -612,6 +699,7 @@ def create_part(db: Session, aid: int, file_id: int, ptype: str, data: str) -> R
         is_deleted=False,
         ptype=ptype,
         data=data,
+        filename=filename,
     )
     db.add(part)
     db.commit()
@@ -628,15 +716,52 @@ def set_part_deleted(db: Session, aid: int, parts_id: int, is_deleted: bool) -> 
     return _ok()
 
 
-def update_part(db: Session, aid: int, parts_id: int, ptype: str, data: str) -> ResultResponse:
+def update_part(
+    db: Session,
+    aid: int,
+    parts_id: int,
+    ptype: str,
+    data: str,
+    filename: str | None = None,
+) -> ResultResponse:
     part = get_part_or_none(db, aid, parts_id)
     if part is None:
         return _fail("指定されたパーツが見つかりません")
 
+    new_filename = part.filename if filename is None else filename.strip()
+    invalid = _validate_filename_for_type(ptype, new_filename)
+    if invalid is not None:
+        return invalid
+
+    content_changed = part.data != data or part.ptype != ptype or part.filename != new_filename
+    if _is_versioned_part_type(part.ptype) and content_changed:
+        _save_part_revision(db, aid, part)
+
     part.ptype = ptype
     part.data = data
+    part.filename = new_filename
     db.commit()
     return _ok()
+
+
+def get_part_revision(
+    db: Session, aid: int, revision_id: int
+) -> PartRevisionGetResponse | ResultResponse:
+    row = db.scalar(
+        select(PartRevision).where(PartRevision.id == revision_id, PartRevision.aid == aid)
+    )
+    if row is None:
+        return _fail("指定された世代が見つかりません")
+
+    return PartRevisionGetResponse(
+        id=row.id,
+        parts_id=row.parts_id,
+        revision_number=row.revision_number,
+        filename=row.filename,
+        ptype=row.ptype,
+        data=row.data,
+        created_at=row.created_at.isoformat(sep=" ", timespec="seconds"),
+    )
 
 
 def swap_part_order(

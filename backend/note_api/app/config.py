@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     debug: bool = False
     debug_aid: int = 1
 
+    # パーツ置き換え時に保持する過去世代数（jpeg / png / binary）
+    parts_max_revisions: int = 3
+
     @property
     def database_url(self) -> str:
         return (

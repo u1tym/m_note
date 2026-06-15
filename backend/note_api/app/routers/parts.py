@@ -1,9 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from note_api.app.deps import CurrentAid, DbSession
 from note_api.app.schemas import (
     PartCreateRequest,
     PartIdRequest,
+    PartRevisionGetRequest,
+    PartRevisionGetResponse,
     PartSwapOrderRequest,
     PartUpdateRequest,
     ResultResponse,
@@ -15,7 +17,9 @@ router = APIRouter(prefix="/parts", tags=["parts"])
 
 @router.post("/create", response_model=ResultResponse)
 def create_part(body: PartCreateRequest, aid: CurrentAid, db: DbSession) -> ResultResponse:
-    return note_service.create_part(db, aid, body.file_id, body.ptype, body.data)
+    return note_service.create_part(
+        db, aid, body.file_id, body.ptype, body.data, body.filename
+    )
 
 
 @router.post("/delete", response_model=ResultResponse)
@@ -30,7 +34,19 @@ def undelete_part(body: PartIdRequest, aid: CurrentAid, db: DbSession) -> Result
 
 @router.post("/update", response_model=ResultResponse)
 def update_part(body: PartUpdateRequest, aid: CurrentAid, db: DbSession) -> ResultResponse:
-    return note_service.update_part(db, aid, body.parts_id, body.ptype, body.data)
+    return note_service.update_part(
+        db, aid, body.parts_id, body.ptype, body.data, body.filename
+    )
+
+
+@router.post("/revision/get", response_model=PartRevisionGetResponse)
+def get_part_revision(
+    body: PartRevisionGetRequest, aid: CurrentAid, db: DbSession
+) -> PartRevisionGetResponse:
+    result = note_service.get_part_revision(db, aid, body.revision_id)
+    if isinstance(result, ResultResponse):
+        raise HTTPException(status_code=404, detail=result.reason)
+    return result
 
 
 @router.post("/swap-order", response_model=ResultResponse)

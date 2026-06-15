@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import type { PartInfo, PartsType } from '../api/types'
+import { getPartRevision } from '../api/noteApi'
+import type { PartInfo, PartRevisionSummary, PartsType } from '../api/types'
+import { formatApiError } from '../api/errors'
+import {
+  acceptForPartType,
+  defaultDownloadName,
+  downloadBase64Part,
+  formatByteSize,
+  mimeTypeForPart,
+  pickFile,
+  readFileAsBase64,
+} from '../utils/binaryPart'
 import MarkdownPreview from './MarkdownPreview.vue'
 import TexPreview from './TexPreview.vue'
 
@@ -10,23 +21,27 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: [type: PartsType, data: string]
-  update: [part: PartInfo, type: PartsType, data: string]
+  add: [type: PartsType, data: string, filename: string]
+  update: [part: PartInfo, type: PartsType, data: string, filename: string]
   delete: [partsId: number]
 }>()
 
 const newType = ref<PartsType>('text')
 const newData = ref('')
+const newFilename = ref('')
 const previewEnabled = ref<Record<number, boolean>>({})
+const replacingPartId = ref<number | null>(null)
+const downloadingRevisionId = ref<number | null>(null)
+const localError = ref<string | null>(null)
 
 const partTypeOptions: { value: PartsType; label: string }[] = [
   { value: 'text', label: 'テキスト' },
   { value: 'md', label: 'Markdown' },
   { value: 'tex', label: 'TeX' },
   { value: 'url', label: 'URL' },
-  { value: 'jpeg', label: 'JPEG（Base64）' },
-  { value: 'png', label: 'PNG（Base64）' },
-  { value: 'binary', label: 'バイナリ（Base64）' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'png', label: 'PNG' },
+  { value: 'binary', label: 'バイナリ' },
 ]
 
 function isBinaryType(type: PartsType): boolean {
@@ -45,40 +60,30 @@ function isPreviewOn(partId: number): boolean {
   return previewEnabled.value[partId] ?? true
 }
 
-async function onPickBinaryFile(): Promise<void> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept =
-      newType.value === 'jpeg' ? 'image/jpeg' : newType.value === 'png' ? 'image/png' : '*/*'
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) {
-        resolve()
-        return
-      }
-      const buffer = await file.arrayBuffer()
-      const bytes = new Uint8Array(buffer)
-      let binary = ''
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]!)
-      }
-      newData.value = btoa(binary)
-      resolve()
-    }
-    input.click()
-  })
+async function onPickBinaryFileForNew(): Promise<void> {
+  const file = await pickFile(acceptForPartType(newType.value))
+  if (!file) {
+    return
+  }
+  newFilename.value = file.name
+  newData.value = await readFileAsBase64(file)
 }
 
 async function onAdd(): Promise<void> {
+  localError.value = null
   if (isBinaryType(newType.value) && !newData.value) {
-    await onPickBinaryFile()
+    await onPickBinaryFileForNew()
   }
   if (!newData.value && newType.value !== 'text') {
     return
   }
-  emit('add', newType.value, newData.value)
+  if (isBinaryType(newType.value) && !newFilename.value.trim()) {
+    localError.value = 'ファイル名が必要です'
+    return
+  }
+  emit('add', newType.value, newData.value, newFilename.value.trim())
   newData.value = ''
+  newFilename.value = ''
 }
 
 function onDeletePart(partsId: number): void {
@@ -88,6 +93,46 @@ function onDeletePart(partsId: number): void {
   emit('delete', partsId)
 }
 
+function onDownloadBinaryPart(part: PartInfo): void {
+  downloadBase64Part(
+    part.data,
+    defaultDownloadName(part.id, part.ptype, part.filename),
+    mimeTypeForPart(part.ptype),
+  )
+}
+
+async function onDownloadRevision(revision: PartRevisionSummary): Promise<void> {
+  localError.value = null
+  downloadingRevisionId.value = revision.id
+  try {
+    const detail = await getPartRevision(revision.id)
+    downloadBase64Part(
+      detail.data,
+      defaultDownloadName(detail.parts_id, detail.ptype, detail.filename),
+      mimeTypeForPart(detail.ptype),
+    )
+  } catch (e) {
+    localError.value = formatApiError(e)
+  } finally {
+    downloadingRevisionId.value = null
+  }
+}
+
+async function onReplaceBinaryPart(part: PartInfo): Promise<void> {
+  localError.value = null
+  const file = await pickFile(acceptForPartType(part.ptype))
+  if (!file) {
+    return
+  }
+  replacingPartId.value = part.id
+  try {
+    const base64 = await readFileAsBase64(file)
+    emit('update', part, part.ptype, base64, file.name)
+  } finally {
+    replacingPartId.value = null
+  }
+}
+
 function partLabel(ptype: PartsType): string {
   return partTypeOptions.find((o) => o.value === ptype)?.label ?? ptype
 }
@@ -95,6 +140,8 @@ function partLabel(ptype: PartsType): string {
 
 <template>
   <section class="parts-panel">
+    <p v-if="localError" class="status error">{{ localError }}</p>
+
     <ul class="parts-list">
       <li v-for="part in parts" :key="part.id" class="part-card">
         <div class="part-header">
@@ -112,17 +159,75 @@ function partLabel(ptype: PartsType): string {
         </div>
 
         <template v-if="part.ptype === 'jpeg' || part.ptype === 'png'">
+          <p v-if="part.filename" class="binary-filename">{{ part.filename }}</p>
           <img
             class="part-image"
             :src="`data:image/${part.ptype};base64,${part.data}`"
-            :alt="`part-${part.id}`"
+            :alt="part.filename || `part-${part.id}`"
           />
+          <div class="binary-actions">
+            <button type="button" @click="onDownloadBinaryPart(part)">ダウンロード</button>
+            <button
+              type="button"
+              :disabled="replacingPartId === part.id"
+              @click="onReplaceBinaryPart(part)"
+            >
+              {{ replacingPartId === part.id ? '置き換え中…' : '置き換え' }}
+            </button>
+          </div>
+          <div v-if="part.revisions.length > 0" class="revision-list">
+            <p class="revision-title">過去の世代</p>
+            <ul>
+              <li v-for="rev in part.revisions" :key="rev.id" class="revision-row">
+                <span class="revision-label">
+                  #{{ rev.revision_number }} {{ rev.filename }}
+                  <small>{{ rev.created_at }}</small>
+                </span>
+                <button
+                  type="button"
+                  :disabled="downloadingRevisionId === rev.id"
+                  @click="onDownloadRevision(rev)"
+                >
+                  {{ downloadingRevisionId === rev.id ? '取得中…' : 'ダウンロード' }}
+                </button>
+              </li>
+            </ul>
+          </div>
         </template>
         <template v-else-if="part.ptype === 'url'">
           <a :href="part.data" target="_blank" rel="noopener noreferrer">{{ part.data }}</a>
         </template>
         <template v-else-if="part.ptype === 'binary'">
-          <p class="binary-hint">バイナリデータ（{{ part.data.length }} 文字の Base64）</p>
+          <p v-if="part.filename" class="binary-filename">{{ part.filename }}</p>
+          <p class="binary-hint">バイナリデータ（約 {{ formatByteSize(part.data.length) }}）</p>
+          <div class="binary-actions">
+            <button type="button" @click="onDownloadBinaryPart(part)">ダウンロード</button>
+            <button
+              type="button"
+              :disabled="replacingPartId === part.id"
+              @click="onReplaceBinaryPart(part)"
+            >
+              {{ replacingPartId === part.id ? '置き換え中…' : '置き換え' }}
+            </button>
+          </div>
+          <div v-if="part.revisions.length > 0" class="revision-list">
+            <p class="revision-title">過去の世代</p>
+            <ul>
+              <li v-for="rev in part.revisions" :key="rev.id" class="revision-row">
+                <span class="revision-label">
+                  #{{ rev.revision_number }} {{ rev.filename }}
+                  <small>{{ rev.created_at }}</small>
+                </span>
+                <button
+                  type="button"
+                  :disabled="downloadingRevisionId === rev.id"
+                  @click="onDownloadRevision(rev)"
+                >
+                  {{ downloadingRevisionId === rev.id ? '取得中…' : 'ダウンロード' }}
+                </button>
+              </li>
+            </ul>
+          </div>
         </template>
         <template v-else>
           <textarea
@@ -135,6 +240,7 @@ function partLabel(ptype: PartsType): string {
                 part,
                 part.ptype,
                 ($event.target as HTMLTextAreaElement).value,
+                part.filename,
               )
             "
           />
@@ -161,8 +267,8 @@ function partLabel(ptype: PartsType): string {
         :placeholder="newType === 'url' ? 'https://...' : '内容を入力'"
       />
       <div v-else class="binary-upload">
-        <button type="button" @click="onPickBinaryFile">ファイルを選択</button>
-        <span v-if="newData">選択済み（Base64 {{ newData.length }} 文字）</span>
+        <button type="button" @click="onPickBinaryFileForNew">ファイルを選択</button>
+        <span v-if="newFilename">{{ newFilename }}（約 {{ formatByteSize(newData.length) }}）</span>
       </div>
       <div v-if="hasPreview(newType) && newData" class="part-preview">
         <p class="preview-label">プレビュー</p>

@@ -138,6 +138,7 @@ create domain note.parts_type as text
 | `is_deleted` | boolean | NOT NULL | — | 削除フラグ（`true` = 削除済み） |
 | `ptype` | note.parts_type | NOT NULL | — | パーツ種別 |
 | `data` | text | NOT NULL | — | 本文データ |
+| `filename` | text | NOT NULL | `''` | ファイル名（`jpeg` / `png` / `binary` で使用。ダウンロード時の名前） |
 
 ### 7.2 制約
 
@@ -151,7 +152,34 @@ create domain note.parts_type as text
 
 ---
 
-## 8. ER 概要
+## 8. `note.parts_revision`（パーツ過去世代）
+
+`jpeg` / `png` / `binary` パーツを **置き換え（update）** する直前に、変更前の内容をスナップショットとして保存する。保持件数は環境変数 `PARTS_MAX_REVISIONS`（既定 `3`）。超過分は古い世代から削除する。
+
+### 8.1 カラム
+
+| カラム | 型 | NULL | 説明 |
+|--------|-----|------|------|
+| `id` | serial | NOT NULL | 主キー（世代 ID。ダウンロード API で指定） |
+| `aid` | integer | NOT NULL | アカウント ID |
+| `parts_id` | integer | NOT NULL | 元パーツ ID → `note.parts(id)` |
+| `revision_number` | integer | NOT NULL | パーツ内の世代番号（1 始まり、更新のたびに増加） |
+| `filename` | text | NOT NULL | 当該世代のファイル名 |
+| `ptype` | note.parts_type | NOT NULL | 当該世代の種別 |
+| `data` | text | NOT NULL | 当該世代のデータ |
+| `created_at` | timestamp | NOT NULL | スナップショット作成時刻 |
+
+### 8.2 制約
+
+| 名前 | 種別 | 定義 |
+|------|------|------|
+| `fk_note_parts_revision_aid` | FK | `aid` → `accounts(id)` |
+| `fk_note_parts_revision_parts` | FK | `parts_id` → `note.parts(id)` ON DELETE CASCADE |
+| `uq_note_parts_revision_number` | UNIQUE | `(parts_id, revision_number)` |
+
+---
+
+## 9. ER 概要
 
 ```
 accounts (public)
@@ -161,11 +189,13 @@ accounts (public)
     ├──< note.file (aid) ── belong ──> note.folder
     │
     └──< note.parts (aid) ── file ──> note.file
+              │
+              └──< note.parts_revision (parts_id)
 ```
 
 ---
 
-## 9. 作成 DDL（参照用）
+## 10. 作成 DDL（参照用）
 
 ```sql
 create schema if not exists note;

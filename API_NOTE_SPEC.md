@@ -44,8 +44,9 @@
 |------|------|
 | `DEBUG` | `true` のとき JWT 検証を行わず、`DEBUG_AID` を `aid` として使う |
 | `DEBUG_AID` | `DEBUG=true` 時の `aid`。既定 `1`（DB 参照なし） |
+| `PARTS_MAX_REVISIONS` | パーツ置き換え時に保持する過去世代数（`jpeg` / `png` / `binary`）。既定 `3` |
 
-**本番では `DEBUG` を `false` にするか未設定にすること。** Cookie なしでも API が動作するため。
+**本番では `DEBUG` を `false` にするか未設定にすること。**
 
 ---
 
@@ -100,6 +101,7 @@ HTTP **200**。本文は共通形式:
 | D-3 | POST | `/parts/undelete` | パーツ削除解除 |
 | D-4 | POST | `/parts/update` | パーツ編集 |
 | D-5 | POST | `/parts/swap-order` | パーツ表示順入れ替え |
+| D-6 | POST | `/parts/revision/get` | パーツ過去世代の取得（ダウンロード用） |
 | — | GET | `/health` | 稼働確認（認証不要） |
 
 ---
@@ -167,10 +169,31 @@ HTTP **200**。本文は共通形式:
   "belong": { "id": 2, "name": "所属フォルダ名" },
   "title": "タイトル",
   "parts": [
-    { "id": 10, "dorder": 1, "ptype": "md", "data": "...", "is_del": false }
+    {
+      "id": 10,
+      "dorder": 1,
+      "ptype": "binary",
+      "data": "...",
+      "filename": "memo.pdf",
+      "is_del": false,
+      "revisions": [
+        {
+          "id": 3,
+          "revision_number": 2,
+          "filename": "memo_old.pdf",
+          "ptype": "binary",
+          "created_at": "2026-06-15 12:00:00"
+        }
+      ]
+    }
   ]
 }
 ```
+
+| フィールド | 説明 |
+|------------|------|
+| `parts[].filename` | 現在世代のファイル名（`jpeg` / `png` / `binary` で使用） |
+| `parts[].revisions` | 過去世代の一覧（メタデータのみ。`data` は含まない）。`jpeg` / `png` / `binary` のみ |
 
 **処理:** 自アカウントのファイル・所属フォルダ・パーツを取得。削除済みファイルも取得可。パーツは `include_deleted` に従いフィルタし、`dorder` 昇順で返す。各パーツに `is_del`（`is_deleted` の反映）を含む。
 
@@ -321,12 +344,13 @@ HTTP **200**。本文は共通形式:
 
 **POST** `/parts/create`
 
-**Input:** `{ "file_id": n, "type": "md", "data": "..." }`
+**Input:** `{ "file_id": n, "type": "md", "data": "...", "filename": "optional" }`
 
 - `type`（API）→ DB の `ptype`
 - `jpeg` / `png` / `binary` のとき `data` は Base64 文字列
+- `jpeg` / `png` / `binary` のとき **`filename` 必須**（空不可）
 
-**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`。
+**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename` を保存。
 
 ---
 
@@ -354,9 +378,12 @@ HTTP **200**。本文は共通形式:
 
 **POST** `/parts/update`
 
-**Input:** `{ "parts_id": n, "type": "t2", "data": "d2" }`
+**Input:** `{ "parts_id": n, "type": "t2", "data": "d2", "filename": "name.bin" }`
 
-**処理:** `ptype` と `data` を更新。
+- `filename` 省略時は既存値を維持
+- `jpeg` / `png` / `binary` では **`filename` 必須**（省略時は既存値が空ならエラー）
+
+**処理:** `ptype`・`data`・`filename` を更新。`jpeg` / `png` / `binary` で内容が変わる場合、更新前の状態を `note.parts_revision` に保存し、`PARTS_MAX_REVISIONS` を超える古い世代を削除する。
 
 ---
 
@@ -367,6 +394,32 @@ HTTP **200**。本文は共通形式:
 **Input:** `{ "file_id": n0, "parts_id_1": n1, "parts_id_2": n2 }`
 
 **処理:** 同一ファイル内 2 パーツの `dorder` を入れ替え（未削除であること）。
+
+---
+
+### D-6. パーツ過去世代取得
+
+**POST** `/parts/revision/get`
+
+過去世代の `data` を含む完全な内容を返す（ダウンロード用）。
+
+**Input:** `{ "revision_id": n }`
+
+**Output**
+
+```json
+{
+  "id": 3,
+  "parts_id": 10,
+  "revision_number": 2,
+  "filename": "memo_old.pdf",
+  "ptype": "binary",
+  "data": "...",
+  "created_at": "2026-06-15 12:00:00"
+}
+```
+
+**処理:** 自アカウントの `note.parts_revision` を取得。存在しない ID は HTTP 404。
 
 ---
 

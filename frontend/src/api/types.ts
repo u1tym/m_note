@@ -36,12 +36,32 @@ export interface BelongInfo {
   name: string
 }
 
+export interface PartRevisionSummary {
+  id: number
+  revision_number: number
+  filename: string
+  ptype: PartsType
+  created_at: string
+}
+
 export interface PartInfo {
   id: number
   dorder: number
   ptype: PartsType
   data: string
+  filename: string
   is_del: boolean
+  revisions: PartRevisionSummary[]
+}
+
+export interface PartRevisionGetResponse {
+  id: number
+  parts_id: number
+  revision_number: number
+  filename: string
+  ptype: PartsType
+  data: string
+  created_at: string
 }
 
 export interface FileGetResponse {

@@ -9,6 +9,7 @@ import {
   updatePart,
 } from '../api/noteApi'
 import type { FileGetResponse, PartInfo, PartsType } from '../api/types'
+import { formatApiError } from '../api/errors'
 import PartEditor from '../components/PartEditor.vue'
 
 const props = defineProps<{
@@ -38,28 +39,45 @@ async function load(): Promise<void> {
   }
 }
 
-async function onAddPart(type: PartsType, data: string): Promise<void> {
-  const res = await createPart(numericFileId.value, type, data)
-  if (!res.result) {
-    throw new Error(res.reason ?? 'パーツ作成に失敗しました')
+async function onAddPart(type: PartsType, data: string, filename: string): Promise<void> {
+  try {
+    const res = await createPart(numericFileId.value, type, data, filename)
+    if (!res.result) {
+      throw new Error(res.reason ?? 'パーツ作成に失敗しました')
+    }
+    await load()
+  } catch (e) {
+    error.value = formatApiError(e)
   }
-  await load()
 }
 
-async function onUpdatePart(part: PartInfo, type: PartsType, data: string): Promise<void> {
-  const res = await updatePart(part.id, type, data)
-  if (!res.result) {
-    throw new Error(res.reason ?? 'パーツ更新に失敗しました')
+async function onUpdatePart(
+  part: PartInfo,
+  type: PartsType,
+  data: string,
+  filename: string,
+): Promise<void> {
+  try {
+    const res = await updatePart(part.id, type, data, filename)
+    if (!res.result) {
+      throw new Error(res.reason ?? 'パーツ更新に失敗しました')
+    }
+    await load()
+  } catch (e) {
+    error.value = formatApiError(e)
   }
-  await load()
 }
 
 async function onDeletePart(partsId: number): Promise<void> {
-  const res = await deletePart(partsId)
-  if (!res.result) {
-    throw new Error(res.reason ?? 'パーツ削除に失敗しました')
+  try {
+    const res = await deletePart(partsId)
+    if (!res.result) {
+      throw new Error(res.reason ?? 'パーツ削除に失敗しました')
+    }
+    await load()
+  } catch (e) {
+    error.value = formatApiError(e)
   }
-  await load()
 }
 
 function goBack(): void {

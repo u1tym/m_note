@@ -2,6 +2,7 @@ import { postNote } from './noteClient'
 import type {
   FileGetResponse,
   ItemsListResponse,
+  PartRevisionGetResponse,
   PartsType,
   ResultResponse,
 } from './types'
@@ -84,16 +85,34 @@ export async function createPart(
   fileId: number,
   type: PartsType,
   data: string,
+  filename = '',
 ): Promise<ResultResponse> {
-  return postNote<ResultResponse>('/parts/create', { file_id: fileId, type, data })
+  return postNote<ResultResponse>('/parts/create', {
+    file_id: fileId,
+    type,
+    data,
+    filename,
+  })
 }
 
 export async function updatePart(
   partsId: number,
   type: PartsType,
   data: string,
+  filename?: string,
 ): Promise<ResultResponse> {
-  return postNote<ResultResponse>('/parts/update', { parts_id: partsId, type, data })
+  return postNote<ResultResponse>('/parts/update', {
+    parts_id: partsId,
+    type,
+    data,
+    ...(filename !== undefined ? { filename } : {}),
+  })
+}
+
+export async function getPartRevision(revisionId: number): Promise<PartRevisionGetResponse> {
+  return postNote<PartRevisionGetResponse>('/parts/revision/get', {
+    revision_id: revisionId,
+  })
 }
 
 export async function deletePart(partsId: number): Promise<ResultResponse> {

@@ -57,7 +57,31 @@ class PartInfo(BaseModel):
     dorder: int
     ptype: str
     data: str
+    filename: str
     is_del: bool
+    revisions: list["PartRevisionSummary"] = []
+
+
+class PartRevisionSummary(BaseModel):
+    id: int
+    revision_number: int
+    filename: str
+    ptype: str
+    created_at: str
+
+
+class PartRevisionGetRequest(BaseModel):
+    revision_id: int
+
+
+class PartRevisionGetResponse(BaseModel):
+    id: int
+    parts_id: int
+    revision_number: int
+    filename: str
+    ptype: str
+    data: str
+    created_at: str
 
 
 class FileGetResponse(BaseModel):
@@ -126,6 +150,7 @@ class PartCreateRequest(BaseModel):
     file_id: int
     ptype: PartsType = Field(alias="type")
     data: str
+    filename: str = ""
 
     model_config = {"populate_by_name": True}
 
@@ -138,6 +163,7 @@ class PartUpdateRequest(BaseModel):
     parts_id: int
     ptype: PartsType = Field(alias="type")
     data: str
+    filename: str | None = None
 
     model_config = {"populate_by_name": True}
 

@@ -68,3 +68,21 @@ class Part(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False)
     ptype: Mapped[str] = mapped_column(Text, nullable=False)
     data: Mapped[str] = mapped_column(Text, nullable=False)
+    filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class PartRevision(Base):
+    __tablename__ = "parts_revision"
+    __table_args__ = (
+        UniqueConstraint("parts_id", "revision_number", name="uq_note_parts_revision_number"),
+        {"schema": "note"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    aid: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False)
+    parts_id: Mapped[int] = mapped_column(Integer, ForeignKey("note.parts.id"), nullable=False)
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    ptype: Mapped[str] = mapped_column(Text, nullable=False)
+    data: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

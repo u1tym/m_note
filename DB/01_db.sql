@@ -86,6 +86,7 @@ create table note.parts (
 
     ptype      note.parts_type not null,
     data       text            not null,
+    filename   text            not null default '',
 
     constraint fk_note_parts_aid
         foreign key (aid)
@@ -96,5 +97,27 @@ create table note.parts (
     constraint uq_note_parts_dorder
         unique (aid, file, dorder)
 );
+
+-- パーツの過去世代（置き換え前のスナップショット）
+create table note.parts_revision (
+    id              serial primary key,
+    aid             integer not null,
+    parts_id        integer not null,
+    revision_number integer not null,
+    filename        text not null default '',
+    ptype           note.parts_type not null,
+    data            text not null,
+    created_at      timestamp not null default now(),
+
+    constraint fk_note_parts_revision_aid
+        foreign key (aid) references accounts(id),
+    constraint fk_note_parts_revision_parts
+        foreign key (parts_id) references note.parts(id) on delete cascade,
+    constraint uq_note_parts_revision_number
+        unique (parts_id, revision_number)
+);
+
+create index ix_note_parts_revision_parts_id
+    on note.parts_revision (parts_id, revision_number desc);
 
     

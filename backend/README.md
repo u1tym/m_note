@@ -63,9 +63,12 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 # ローカル開発のみ（本番では DEBUG=false または未設定）
 DEBUG=true
 DEBUG_AID=1
+PARTS_MAX_REVISIONS=3
 ```
 
 | 変数 | 説明 |
+|------|------|
+| `PARTS_MAX_REVISIONS` | `jpeg` / `png` / `binary` 置き換え時に DB に残す過去世代数 |
 |------|------|
 | `DB_*` | PostgreSQL 接続情報 |
 | `SECRET_KEY` | JWT 署名検証用秘密鍵（**認証 API と同一の値**） |
@@ -73,7 +76,7 @@ DEBUG_AID=1
 | `COOKIE_NAME` | JWT を載せる Cookie 名（既定 `access_token`） |
 | `CORS_ORIGINS` | ブラウザからアクセスする場合の許可オリジン（カンマ区切り） |
 | `DEBUG` | `true` のとき JWT 検証をスキップし、`DEBUG_AID` をアカウント ID として使う（**開発専用**） |
-| `DEBUG_AID` | `DEBUG=true` 時に使う `aid`（`accounts.id`）。既定 `1`。DB 参照は行わない |
+| `PARTS_MAX_REVISIONS` | パーツ置き換え時に保持する過去世代数（既定 `3`） |
 
 ### 5. データベースの準備
 
@@ -88,7 +91,10 @@ DDL の参考:
 
 ```powershell
 psql -h localhost -U tamtuser -d tamtdb -f for_human_memo\db.sql
+psql -h localhost -U tamtuser -d tamtdb -f DB\02_parts_filename_revision.sql
 ```
+
+既存 DB には `DB/02_parts_filename_revision.sql` を実行してください（`filename` 列と `parts_revision` テーブル追加）。
 
 ---
 
@@ -158,6 +164,7 @@ JWT の `username` と DB の `accounts.username` を突合し、`accounts.id` �
 | D-3 | `POST /parts/undelete` | パーツ削除解除 |
 | D-4 | `POST /parts/update` | パーツ編集 |
 | D-5 | `POST /parts/swap-order` | パーツ表示順入れ替え |
+| D-6 | `POST /parts/revision/get` | パーツ過去世代取得 |
 
 ### curl の例
 
