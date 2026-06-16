@@ -57,6 +57,18 @@ export async function deleteFolder(folderId: number): Promise<ResultResponse> {
   return postNote<ResultResponse>('/folders/delete', { folder_id: folderId })
 }
 
+export async function swapFolderOrder(
+  parentId: number | null,
+  folderId1: number,
+  folderId2: number,
+): Promise<ResultResponse> {
+  return postNote<ResultResponse>('/folders/swap-order', {
+    parent_id: parentId,
+    folder_id_1: folderId1,
+    folder_id_2: folderId2,
+  })
+}
+
 export async function createFile(folderId: number, title: string): Promise<ResultResponse> {
   return postNote<ResultResponse>('/files/create', { folder_id: folderId, title })
 }
@@ -79,6 +91,18 @@ export async function moveFile(
 
 export async function deleteFile(fileId: number): Promise<ResultResponse> {
   return postNote<ResultResponse>('/files/delete', { file_id: fileId })
+}
+
+export async function swapFileOrder(
+  folderId: number,
+  fileId1: number,
+  fileId2: number,
+): Promise<ResultResponse> {
+  return postNote<ResultResponse>('/files/swap-order', {
+    parent_id: folderId,
+    file_id_1: fileId1,
+    file_id_2: fileId2,
+  })
 }
 
 export async function createPart(

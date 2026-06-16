@@ -50,6 +50,7 @@ const editFilename = ref('')
 const editActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const newActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const saving = ref(false)
+const showAddForm = ref(false)
 
 const partTypeOptions: { value: PartsType; label: string }[] = [
   { value: 'text', label: 'テキスト' },
@@ -78,10 +79,6 @@ function isActionType(type: PartsType): boolean {
 
 function hasPreview(type: PartsType): boolean {
   return type === 'md' || type === 'tex'
-}
-
-function partLabel(ptype: PartsType): string {
-  return partTypeOptions.find((o) => o.value === ptype)?.label ?? ptype
 }
 
 function openPart(part: PartInfo): void {
@@ -137,6 +134,30 @@ function onEditActionPlanUpdate(plan: ActionPlanData): void {
   editActionPlan.value = plan
 }
 
+function resetAddForm(): void {
+  newType.value = 'text'
+  newData.value = ''
+  newFilename.value = ''
+  newActionPlan.value = emptyActionPlan()
+}
+
+function openAddForm(): void {
+  localError.value = null
+  showAddForm.value = true
+}
+
+function cancelAddForm(): void {
+  showAddForm.value = false
+  resetAddForm()
+  localError.value = null
+}
+
+function finishAdd(): void {
+  resetAddForm()
+  showAddForm.value = false
+  localError.value = null
+}
+
 async function onPickBinaryFileForNew(): Promise<void> {
   const file = await pickFile(acceptForPartType(newType.value))
   if (!file) {
@@ -155,7 +176,7 @@ async function onAdd(): Promise<void> {
       return
     }
     emit('add', 'action', serializeActionPlan(newActionPlan.value), '')
-    newActionPlan.value = emptyActionPlan()
+    finishAdd()
     return
   }
   if (isBinaryType(newType.value) && !newData.value) {
@@ -169,8 +190,7 @@ async function onAdd(): Promise<void> {
     return
   }
   emit('add', newType.value, newData.value, newFilename.value.trim())
-  newData.value = ''
-  newFilename.value = ''
+  finishAdd()
 }
 
 function onDeletePart(partsId: number): void {
@@ -275,6 +295,12 @@ function onMovePart(part: PartInfo, direction: -1 | 1): void {
 function partIndex(part: PartInfo): number {
   return sortedParts.value.findIndex((p) => p.id === part.id)
 }
+
+function onOverlayClick(): void {
+  if (sheetMode.value === 'actions') {
+    closeSheet()
+  }
+}
 </script>
 
 <template>
@@ -305,8 +331,6 @@ function partIndex(part: PartInfo): number {
         </div>
 
         <button type="button" class="part-view" @click="openPart(part)">
-            <span class="part-type">{{ partLabel(part.ptype) }}</span>
-
             <template v-if="part.ptype === 'jpeg' || part.ptype === 'png'">
               <img
                 class="part-image"
@@ -341,11 +365,10 @@ function partIndex(part: PartInfo): number {
       class="picker-overlay"
       role="dialog"
       aria-modal="true"
-      @click.self="closeSheet"
+      @click.self="onOverlayClick"
     >
       <div class="picker-dialog part-sheet">
-        <header class="part-sheet-header">
-          <h2>{{ partLabel(activePart.ptype) }}</h2>
+        <header class="part-sheet-header part-sheet-header--close-only">
           <button type="button" class="sheet-close" @click="closeSheet">閉じる</button>
         </header>
 
@@ -466,34 +489,43 @@ function partIndex(part: PartInfo): number {
       </div>
     </div>
 
-    <div class="add-part">
-      <h2>パーツを追加</h2>
-      <select v-model="newType">
-        <option v-for="opt in partTypeOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
-      <ActionPlanEditor
-        v-if="isActionType(newType)"
-        :model-value="newActionPlan"
-        @update:model-value="onNewActionPlanUpdate"
-      />
-      <textarea
-        v-else-if="!isBinaryType(newType)"
-        v-model="newData"
-        rows="4"
-        :placeholder="newType === 'url' ? 'https://...' : '内容を入力'"
-      />
-      <div v-else class="binary-upload">
-        <button type="button" @click="onPickBinaryFileForNew">ファイルを選択</button>
-        <span v-if="newFilename">{{ newFilename }}（約 {{ formatByteSize(newData.length) }}）</span>
-      </div>
-      <div v-if="hasPreview(newType) && newData" class="part-preview">
-        <p class="preview-label">プレビュー</p>
-        <MarkdownPreview v-if="newType === 'md'" :source="newData" />
-        <TexPreview v-else-if="newType === 'tex'" :source="newData" />
-      </div>
-      <button type="button" class="primary" @click="onAdd">追加</button>
+    <div class="add-part" :class="{ 'add-part--open': showAddForm }">
+      <button v-if="!showAddForm" type="button" class="add-part-toggle" @click="openAddForm">
+        パーツを追加
+      </button>
+
+      <template v-else>
+        <div class="add-part-header">
+          <h2>パーツを追加</h2>
+          <button type="button" class="add-part-cancel" @click="cancelAddForm">キャンセル</button>
+        </div>
+        <select v-model="newType">
+          <option v-for="opt in partTypeOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+        <ActionPlanEditor
+          v-if="isActionType(newType)"
+          :model-value="newActionPlan"
+          @update:model-value="onNewActionPlanUpdate"
+        />
+        <textarea
+          v-else-if="!isBinaryType(newType)"
+          v-model="newData"
+          rows="4"
+          :placeholder="newType === 'url' ? 'https://...' : '内容を入力'"
+        />
+        <div v-else class="binary-upload">
+          <button type="button" @click="onPickBinaryFileForNew">ファイルを選択</button>
+          <span v-if="newFilename">{{ newFilename }}（約 {{ formatByteSize(newData.length) }}）</span>
+        </div>
+        <div v-if="hasPreview(newType) && newData" class="part-preview">
+          <p class="preview-label">プレビュー</p>
+          <MarkdownPreview v-if="newType === 'md'" :source="newData" />
+          <TexPreview v-else-if="newType === 'tex'" :source="newData" />
+        </div>
+        <button type="button" class="primary" @click="onAdd">追加</button>
+      </template>
     </div>
   </section>
 </template>

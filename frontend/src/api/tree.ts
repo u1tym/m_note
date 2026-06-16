@@ -1,6 +1,10 @@
 import { listItems } from './noteApi'
 import type { FileItem, TreeFolderNode } from './types'
 
+function sortByDorder<T extends { dorder: number }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.dorder - b.dorder)
+}
+
 export function createEmptyTreeNode(
   id: number,
   name: string,
@@ -19,19 +23,19 @@ export function createEmptyTreeNode(
 /** A-1 を使い、指定フォルダの子を読み込んでノードを更新する（遅延展開向け） */
 export async function loadFolderChildren(node: TreeFolderNode): Promise<void> {
   const res = await listItems(node.id, false)
-  node.children = res.folder
-    .filter((f) => !f.is_del)
-    .map((f) => createEmptyTreeNode(f.id, f.name, f.dorder))
-  node.files = res.file.filter((f) => !f.is_del)
+  node.children = sortByDorder(res.folder.filter((f) => !f.is_del)).map((f) =>
+    createEmptyTreeNode(f.id, f.name, f.dorder),
+  )
+  node.files = sortByDorder(res.file.filter((f) => !f.is_del))
   node.loaded = true
 }
 
 /** ルート直下のフォルダ一覧を取得 */
 export async function loadRootFolders(): Promise<TreeFolderNode[]> {
   const res = await listItems(null, false)
-  return res.folder
-    .filter((f) => !f.is_del)
-    .map((f) => createEmptyTreeNode(f.id, f.name, f.dorder))
+  return sortByDorder(res.folder.filter((f) => !f.is_del)).map((f) =>
+    createEmptyTreeNode(f.id, f.name, f.dorder),
+  )
 }
 
 export function findFolderNode(

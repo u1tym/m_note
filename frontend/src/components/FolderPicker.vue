@@ -6,10 +6,11 @@ defineProps<{
   title: string
   folders: FlatFolderEntry[]
   excludeIds?: Set<number>
+  allowRoot?: boolean
 }>()
 
 const emit = defineEmits<{
-  pick: [folderId: number]
+  pick: [folderId: number | null]
   cancel: []
 }>()
 
@@ -23,6 +24,11 @@ function indent(depth: number): string {
     <div class="picker-dialog">
       <h2>{{ title }}</h2>
       <ul class="picker-list">
+        <li v-if="allowRoot">
+          <button type="button" class="picker-item" @click="emit('pick', null)">
+            📁 ルート（最上位）
+          </button>
+        </li>
         <li v-for="folder in folders" :key="folder.id">
           <button
             type="button"
@@ -34,7 +40,7 @@ function indent(depth: number): string {
           </button>
         </li>
       </ul>
-      <p v-if="folders.length === 0" class="picker-empty">
+      <p v-if="!allowRoot && folders.length === 0" class="picker-empty">
         移動先フォルダがありません。ツリーでフォルダを展開してください。
       </p>
       <button type="button" class="picker-cancel" @click="emit('cancel')">キャンセル</button>

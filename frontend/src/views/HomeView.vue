@@ -11,6 +11,8 @@ import {
   moveFolder,
   deleteFolder,
   deleteFile,
+  swapFolderOrder,
+  swapFileOrder,
 } from '../api/noteApi'
 import {
   loadRootFolders,
@@ -30,10 +32,16 @@ const roots = ref<TreeFolderNode[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const selectedFolderId = ref<number | null>(null)
+const editMode = ref(false)
+
+function toggleEditMode(): void {
+  editMode.value = !editMode.value
+}
 
 const pickerOpen = ref(false)
 const pickerTitle = ref('')
 const pickerExcludeIds = ref<Set<number>>(new Set())
+const pickerAllowRoot = ref(false)
 const moveTarget = ref<
   | { kind: 'file'; fileId: number; oldParentId: number }
   | { kind: 'folder'; folderId: number; oldParentId: number | null }
@@ -134,7 +142,26 @@ function onRequestMoveFolder(folderId: number, parentId: number | null): void {
   moveTarget.value = { kind: 'folder', folderId, oldParentId: parentId }
   pickerTitle.value = 'フォルダの移動先'
   pickerExcludeIds.value = collectBlockedFolderIds(roots.value, folderId)
+  pickerAllowRoot.value = true
   pickerOpen.value = true
+}
+
+async function onReorderFolder(
+  parentId: number | null,
+  folderId1: number,
+  folderId2: number,
+): Promise<void> {
+  await runAction(async () => {
+    const res = await swapFolderOrder(parentId, folderId1, folderId2)
+    if (!res.result) {
+      throw new Error(res.reason ?? 'フォルダの並び替えに失敗しました')
+    }
+    if (parentId === null) {
+      await refreshRoots()
+    } else {
+      await reloadNode(parentId)
+    }
+  })
 }
 
 async function onCreateFile(folderId: number, title: string): Promise<void> {
@@ -174,13 +201,29 @@ function onRequestMoveFile(fileId: number, oldParentId: number): void {
   moveTarget.value = { kind: 'file', fileId, oldParentId }
   pickerTitle.value = 'ファイルの移動先'
   pickerExcludeIds.value = new Set()
+  pickerAllowRoot.value = false
   pickerOpen.value = true
 }
 
-async function onPickerPick(newParentId: number): Promise<void> {
+async function onReorderFile(
+  folderId: number,
+  fileId1: number,
+  fileId2: number,
+): Promise<void> {
+  await runAction(async () => {
+    const res = await swapFileOrder(folderId, fileId1, fileId2)
+    if (!res.result) {
+      throw new Error(res.reason ?? 'ファイルの並び替えに失敗しました')
+    }
+    await reloadNode(folderId)
+  })
+}
+
+async function onPickerPick(newParentId: number | null): Promise<void> {
   const target = moveTarget.value
   pickerOpen.value = false
   moveTarget.value = null
+  pickerAllowRoot.value = false
 
   if (!target) {
     return
@@ -188,6 +231,9 @@ async function onPickerPick(newParentId: number): Promise<void> {
 
   await runAction(async () => {
     if (target.kind === 'file') {
+      if (newParentId === null) {
+        return
+      }
       if (target.oldParentId === newParentId) {
         return
       }
@@ -210,7 +256,11 @@ async function onPickerPick(newParentId: number): Promise<void> {
       } else {
         await reloadNode(target.oldParentId)
       }
-      await reloadNode(newParentId)
+      if (newParentId === null) {
+        await refreshRoots()
+      } else {
+        await reloadNode(newParentId)
+      }
     }
   })
 }
@@ -218,6 +268,7 @@ async function onPickerPick(newParentId: number): Promise<void> {
 function onPickerCancel(): void {
   pickerOpen.value = false
   moveTarget.value = null
+  pickerAllowRoot.value = false
 }
 
 function onSelectFolder(folderId: number | null): void {
@@ -235,9 +286,18 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <header class="page-header">
+    <header class="page-header page-header--inline">
       <BackToMenuButton />
-      <h1>メモ</h1>
+      <h1>Note</h1>
+      <button
+        v-if="!loading"
+        type="button"
+        class="header-edit-btn"
+        :aria-pressed="editMode"
+        @click="toggleEditMode"
+      >
+        {{ editMode ? '完了' : '編集' }}
+      </button>
     </header>
 
     <p v-if="loading" class="status">読み込み中…</p>
@@ -247,6 +307,7 @@ onMounted(() => {
       v-else
       :roots="roots"
       :selected-folder-id="selectedFolderId"
+      :edit-mode="editMode"
       @expand="onExpand"
       @select-folder="onSelectFolder"
       @open-file="openFile"
@@ -255,10 +316,12 @@ onMounted(() => {
       @rename-folder="onRenameFolder"
       @delete-folder="onDeleteFolder"
       @move-folder="onRequestMoveFolder"
+      @reorder-folder="onReorderFolder"
       @create-file="onCreateFile"
       @rename-file="onRenameFile"
       @delete-file="onDeleteFile"
       @move-file="onRequestMoveFile"
+      @reorder-file="onReorderFile"
     />
 
     <FolderPicker
@@ -266,6 +329,7 @@ onMounted(() => {
       :title="pickerTitle"
       :folders="pickerFolders"
       :exclude-ids="pickerExcludeIds"
+      :allow-root="pickerAllowRoot"
       @pick="onPickerPick"
       @cancel="onPickerCancel"
     />

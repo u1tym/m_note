@@ -41,6 +41,41 @@ textarea {
   font-size: 1.25rem;
 }
 
+.page-header--inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.page-header--inline .back-btn {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.page-header--inline h1 {
+  flex: 1;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.header-edit-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.header-edit-btn[aria-pressed='true'] {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
 .subtitle {
   margin: 4px 0 0;
   color: #71717a;
@@ -48,12 +83,12 @@ textarea {
 }
 
 .back-btn {
-  margin-bottom: 8px;
   border: none;
   background: none;
   color: #2563eb;
   padding: 0;
   cursor: pointer;
+  font-size: 0.9375rem;
 }
 
 .status {
@@ -66,6 +101,15 @@ textarea {
 
 .tree-toolbar {
   margin-bottom: 12px;
+}
+
+.tree-icon-btn {
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
 .tree-toolbar button,
@@ -107,6 +151,20 @@ textarea {
   text-align: left;
 }
 
+.expand-btn,
+.tree-row-icon {
+  flex-shrink: 0;
+  width: 1.75rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.tree-row-icon {
+  display: inline-block;
+}
+
 .folder-name,
 .file-name {
   flex: 1;
@@ -119,6 +177,13 @@ textarea {
   display: flex;
   gap: 2px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.tree-reorder {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
 }
 
 .row-actions button {
@@ -144,15 +209,15 @@ textarea {
   position: relative;
   border: 1px solid #e4e4e7;
   border-radius: 8px;
-  padding: 8px;
+  padding: 4px 8px;
 }
 
 .part-reorder {
   position: absolute;
-  top: 4px;
+  top: 2px;
   right: 4px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 2px;
   z-index: 1;
 }
@@ -181,7 +246,7 @@ textarea {
   text-align: left;
   border: none;
   background: none;
-  padding: 4px 30px 4px 6px;
+  padding: 0 50px 0 2px;
   cursor: pointer;
   border-radius: 6px;
 }
@@ -195,7 +260,7 @@ textarea {
 }
 
 .part-text-view {
-  margin: 4px 0 0;
+  margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: inherit;
@@ -205,7 +270,7 @@ textarea {
 
 .part-binary-name {
   display: block;
-  margin-top: 4px;
+  margin: 0;
   font-size: 0.9375rem;
   word-break: break-all;
   color: #2563eb;
@@ -213,7 +278,7 @@ textarea {
 
 .part-url {
   display: block;
-  margin-top: 4px;
+  margin: 0;
   font-size: 0.875rem;
   word-break: break-all;
   color: #2563eb;
@@ -229,6 +294,10 @@ textarea {
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.part-sheet-header--close-only {
+  justify-content: flex-end;
 }
 
 .part-sheet-header h2 {
@@ -288,12 +357,12 @@ textarea {
 }
 
 .action-plan-view {
-  margin-top: 4px;
+  margin: 0;
 }
 
 .action-point-line {
   margin: 0;
-  padding: 6px 0;
+  padding: 2px 0;
   font-size: 0.9375rem;
   line-height: 1.5;
   display: flex;
@@ -310,8 +379,8 @@ textarea {
 }
 
 .action-leg-memo {
-  margin: 0 0 4px 12px;
-  padding: 4px 0 4px 10px;
+  margin: 0 0 2px 10px;
+  padding: 2px 0 2px 8px;
   border-left: 2px dashed #d4d4d8;
   font-size: 0.8125rem;
   color: #52525b;
@@ -404,14 +473,14 @@ textarea {
   margin-bottom: 8px;
 }
 
-.part-type {
-  font-size: 0.75rem;
-  color: #52525b;
-}
-
 .part-text {
   width: 100%;
   resize: vertical;
+}
+
+.part-view :deep(.md-preview > :first-child),
+.part-view :deep(.tex-preview > :first-child) {
+  margin-top: 0;
 }
 
 .part-image {
@@ -504,11 +573,42 @@ textarea {
 }
 
 .add-part {
+  border-top: 1px solid #e4e4e7;
+  padding-top: 12px;
+}
+
+.add-part--open {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-top: 1px solid #e4e4e7;
   padding-top: 16px;
+}
+
+.add-part-toggle {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 0.9375rem;
+}
+
+.add-part-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.add-part-cancel {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 0.8125rem;
 }
 
 .add-part h2 {
