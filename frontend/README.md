@@ -9,7 +9,7 @@ Vue 3 + TypeScript + Vite。スマホ向け UI を前提としています。
 | `VITE_NOTE_ORIGIN` | Note API の起点。例: `/api/note` |
 | `VITE_LOGIN_ORIGIN` | 認証 API の起点。例: `/api/auth` |
 | `VITE_LOGIN_PAGE_URL` | 未ログイン時のリダイレクト先 |
-| `VITE_MENU_PAGE_URL` | 戻るボタンの遷移先（例: `/mobile/login/#/menu`） |
+| `VITE_MENU_PAGE_URL` | 戻るボタンの遷移先。**`#` を含む場合は値を `"..."` で囲む**（例: `"/mobile/login/#/menu"`） |
 | `VITE_SKIP_SESSION_EXTEND` | `true` のとき NOTE API 前の `POST /refresh` をスキップ（デバッグ用） |
 | `VITE_NOTE_PROXY_TARGET` | 開発時プロキシ先（既定 `http://127.0.0.1:8000`） |
 | `VITE_BASE_PATH` | 本番の公開パス（例: `/mobile/notes/`、末尾スラッシュ必須） |

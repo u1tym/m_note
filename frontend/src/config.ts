@@ -15,6 +15,6 @@ export const skipSessionExtend =
 export const loginPageUrl =
   (import.meta.env.VITE_LOGIN_PAGE_URL as string | undefined) ?? `${loginOrigin}/login`
 
-/** メニュー画面 URL（戻るボタン遷移先） */
+/** メニュー画面 URL（戻るボタン遷移先）。.env では # 以降がコメントになるため "..." で囲むこと */
 export const menuPageUrl =
   (import.meta.env.VITE_MENU_PAGE_URL as string | undefined) ?? '/mobile/login/#/menu'
