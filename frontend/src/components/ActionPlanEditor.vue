@@ -47,8 +47,8 @@ watch(
   { immediate: true, deep: true },
 )
 
-function emitUpdate(plan: ActionPlanData): void {
-  const normalized = normalizeActionPlan(plan)
+function emitUpdate(): void {
+  const normalized = normalizeActionPlan(localPlan.value)
   localPlan.value = normalized
   emit('update:modelValue', normalized)
 }
@@ -58,8 +58,7 @@ function setPointField(
   field: 'place' | 'time' | 'arrive' | 'depart',
   value: string,
 ): void {
-  const plan = structuredClone(localPlan.value)
-  const point = plan.points[index]
+  const point = localPlan.value.points[index]
   if (!point) {
     return
   }
@@ -73,22 +72,20 @@ function setPointField(
     delete point.time
     splitModeByIndex.value[index] = true
   }
-  emitUpdate(plan)
+  emitUpdate()
 }
 
 function setLegMemo(index: number, memo: string): void {
-  const plan = structuredClone(localPlan.value)
-  if (!plan.legs[index]) {
+  if (!localPlan.value.legs[index]) {
     return
   }
-  plan.legs[index].memo = memo
-  emitUpdate(plan)
+  localPlan.value.legs[index].memo = memo
+  emitUpdate()
 }
 
 function toggleSplitMode(index: number, useSplit: boolean): void {
   splitModeByIndex.value[index] = useSplit
-  const plan = structuredClone(localPlan.value)
-  const point = plan.points[index]
+  const point = localPlan.value.points[index]
   if (!point) {
     return
   }
@@ -107,15 +104,17 @@ function toggleSplitMode(index: number, useSplit: boolean): void {
       point.time = ''
     }
   }
-  emitUpdate(plan)
+  emitUpdate()
 }
 
 function onAddPoint(): void {
-  emitUpdate(addNextPoint(localPlan.value))
+  localPlan.value = addNextPoint(localPlan.value)
+  emitUpdate()
 }
 
 function onRemovePoint(index: number): void {
-  emitUpdate(removePoint(localPlan.value, index))
+  localPlan.value = removePoint(localPlan.value, index)
+  emitUpdate()
 }
 
 function isSplitMode(index: number): boolean {
