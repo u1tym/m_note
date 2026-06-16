@@ -16,12 +16,31 @@ export interface ActionPlanData {
   legs: ActionPlanLeg[]
 }
 
-function strip(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+/** 保存時: 場所・経由メモは末尾空白のみ削除（文中・先頭の空白は保持） */
+function trimEndField(value: unknown): string {
+  return asString(value).trimEnd()
+}
+
+/** 時刻系は前後空白を削除 */
+function trimTime(value: unknown): string {
+  return asString(value).trim()
+}
+
+function isBlank(value: unknown): boolean {
+  return asString(value).trim() === ''
 }
 
 function pointIsEmpty(point: ActionPlanPoint): boolean {
-  return !strip(point.place) && !strip(point.time) && !strip(point.arrive) && !strip(point.depart)
+  return (
+    isBlank(point.place) &&
+    isBlank(point.time) &&
+    isBlank(point.arrive) &&
+    isBlank(point.depart)
+  )
 }
 
 export function emptyActionPlan(): ActionPlanData {
@@ -44,16 +63,16 @@ export function parseActionPlan(data: string): ActionPlanData | null {
     const points = obj.points.map((item) => {
       const p = item as Record<string, unknown>
       return {
-        place: strip(p.place),
-        time: strip(p.time) || undefined,
-        arrive: strip(p.arrive) || undefined,
-        depart: strip(p.depart) || undefined,
+        place: trimEndField(p.place),
+        time: trimTime(p.time) || undefined,
+        arrive: trimTime(p.arrive) || undefined,
+        depart: trimTime(p.depart) || undefined,
       }
     })
     const legs = Array.isArray(obj.legs)
       ? obj.legs.map((item) => {
           const leg = item as Record<string, unknown>
-          return { memo: strip(leg.memo) }
+          return { memo: trimEndField(leg.memo) }
         })
       : []
     return normalizeActionPlan({ points, legs })
@@ -69,18 +88,18 @@ export function normalizeActionPlan(plan: ActionPlanData): ActionPlanData {
   editor.points.forEach((point, index) => {
     if (index === 0) {
       points.push({
-        place: strip(point.place),
-        time: strip(point.time),
+        place: trimEndField(point.place),
+        time: trimTime(point.time),
       })
       return
     }
     if (pointIsEmpty(point)) {
       return
     }
-    const normalized: ActionPlanPoint = { place: strip(point.place) }
-    const time = strip(point.time)
-    const arrive = strip(point.arrive)
-    const depart = strip(point.depart)
+    const normalized: ActionPlanPoint = { place: trimEndField(point.place) }
+    const time = trimTime(point.time)
+    const arrive = trimTime(point.arrive)
+    const depart = trimTime(point.depart)
     if (arrive || depart) {
       if (arrive) {
         normalized.arrive = arrive
@@ -100,25 +119,25 @@ export function normalizeActionPlan(plan: ActionPlanData): ActionPlanData {
 
   const legs: ActionPlanLeg[] = []
   for (let i = 0; i < points.length - 1; i += 1) {
-    legs.push({ memo: editor.legs[i]?.memo?.trim() ?? '' })
+    legs.push({ memo: trimEndField(editor.legs[i]?.memo) })
   }
 
   return { points, legs }
 }
 
-/** 編集中用。空の地点も保持する（地点追加直後のプレースホルダー用） */
+/** 編集中用。空の地点も保持。場所・経由メモは入力どおり保持する */
 export function normalizeActionPlanForEditor(plan: ActionPlanData): ActionPlanData {
   const points = plan.points.map((point, index) => {
     if (index === 0) {
       return {
-        place: strip(point.place),
-        time: strip(point.time),
+        place: asString(point.place),
+        time: asString(point.time),
       }
     }
-    const normalized: ActionPlanPoint = { place: strip(point.place) }
-    const time = strip(point.time)
-    const arrive = strip(point.arrive)
-    const depart = strip(point.depart)
+    const normalized: ActionPlanPoint = { place: asString(point.place) }
+    const time = asString(point.time)
+    const arrive = asString(point.arrive)
+    const depart = asString(point.depart)
     if (arrive || depart) {
       if (arrive) {
         normalized.arrive = arrive
@@ -138,7 +157,7 @@ export function normalizeActionPlanForEditor(plan: ActionPlanData): ActionPlanDa
 
   const legs: ActionPlanLeg[] = []
   for (let i = 0; i < points.length - 1; i += 1) {
-    legs.push({ memo: plan.legs[i]?.memo?.trim() ?? '' })
+    legs.push({ memo: asString(plan.legs[i]?.memo) })
   }
 
   return { points, legs }
@@ -168,19 +187,21 @@ export function serializeActionPlan(plan: ActionPlanData): string {
 
 export function validateActionPlan(plan: ActionPlanData): string | null {
   const normalized = normalizeActionPlan(plan)
-  if (!strip(normalized.points[0]?.place)) {
+  if (isBlank(normalized.points[0]?.place)) {
     return '地点1の場所は必須です'
   }
-  if (!strip(normalized.points[0]?.time)) {
+  if (isBlank(normalized.points[0]?.time)) {
     return '地点1の時刻は必須です'
   }
   for (let i = 1; i < normalized.points.length; i += 1) {
     const point = normalized.points[i]
-    const hasTime = Boolean(strip(point.time) || strip(point.arrive) || strip(point.depart))
-    if (!strip(point.place) && !hasTime) {
+    const hasTime = Boolean(
+      !isBlank(point.time) || !isBlank(point.arrive) || !isBlank(point.depart),
+    )
+    if (isBlank(point.place) && !hasTime) {
       return `地点${i + 1} に場所または時刻を入力してください`
     }
-    if (strip(point.time) && (strip(point.arrive) || strip(point.depart))) {
+    if (!isBlank(point.time) && (!isBlank(point.arrive) || !isBlank(point.depart))) {
       return `地点${i + 1} は単一時刻と到着・出発を同時に指定できません`
     }
   }
@@ -189,19 +210,19 @@ export function validateActionPlan(plan: ActionPlanData): string | null {
 
 export function formatPointTimes(point: ActionPlanPoint, index: number): string {
   if (index === 0) {
-    return strip(point.time)
+    return trimTime(point.time)
   }
-  if (strip(point.arrive) || strip(point.depart)) {
+  if (!isBlank(point.arrive) || !isBlank(point.depart)) {
     const parts: string[] = []
-    if (strip(point.arrive)) {
-      parts.push(`到着 ${point.arrive}`)
+    if (!isBlank(point.arrive)) {
+      parts.push(trimTime(point.arrive))
     }
-    if (strip(point.depart)) {
-      parts.push(`出発 ${point.depart}`)
+    if (!isBlank(point.depart)) {
+      parts.push(trimTime(point.depart))
     }
     return parts.join(' / ')
   }
-  return strip(point.time)
+  return trimTime(point.time)
 }
 
 export function addNextPoint(plan: ActionPlanData): ActionPlanData {
@@ -225,5 +246,9 @@ export function pointUsesSplitTime(point: ActionPlanPoint, index: number): boole
   if (index === 0) {
     return false
   }
-  return Boolean(strip(point.arrive) || strip(point.depart) || (!strip(point.time) && index > 0))
+  return Boolean(
+    !isBlank(point.arrive) ||
+      !isBlank(point.depart) ||
+      (isBlank(point.time) && index > 0),
+  )
 }

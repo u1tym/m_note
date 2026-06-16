@@ -16,20 +16,21 @@ const plan = computed(() => parseActionPlan(props.data))
 <template>
   <div v-if="plan" class="action-plan-view">
     <template v-for="(point, index) in plan.points" :key="index">
-      <div class="action-point">
-        <span class="action-point-label">地点{{ index + 1 }}</span>
-        <p v-if="formatPointTimes(point, index)" class="action-point-time">
-          {{ formatPointTimes(point, index) }}
-        </p>
-        <p v-if="point.place" class="action-point-place">{{ point.place }}</p>
-      </div>
-      <div
-        v-if="index < plan.legs.length && plan.legs[index].memo"
-        class="action-leg"
+      <p
+        v-if="formatPointTimes(point, index) || point.place"
+        class="action-point-line"
       >
-        <span class="action-leg-label">経由</span>
-        <p class="action-leg-memo">{{ plan.legs[index].memo }}</p>
-      </div>
+        <span v-if="formatPointTimes(point, index)" class="action-point-time">
+          {{ formatPointTimes(point, index) }}
+        </span>
+        <span v-if="point.place" class="action-point-place">{{ point.place }}</span>
+      </p>
+      <p
+        v-if="index < plan.legs.length && plan.legs[index].memo"
+        class="action-leg-memo"
+      >
+        {{ plan.legs[index].memo }}
+      </p>
     </template>
   </div>
   <p v-else class="action-plan-error">行動予定の形式が不正です</p>

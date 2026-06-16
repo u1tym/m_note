@@ -12,15 +12,27 @@ def _fail(reason: str) -> ResultResponse:
     return ResultResponse(result=False, reason=reason)
 
 
-def _strip_str(value: Any) -> str:
+def _as_str(value: Any) -> str:
     if not isinstance(value, str):
         return ""
-    return value.strip()
+    return value
+
+
+def _trim_end(value: Any) -> str:
+    return _as_str(value).rstrip()
+
+
+def _trim_time(value: Any) -> str:
+    return _as_str(value).strip()
+
+
+def _is_blank(value: Any) -> bool:
+    return _as_str(value).strip() == ""
 
 
 def _point_is_empty(point: dict[str, Any]) -> bool:
     return not any(
-        _strip_str(point.get(key))
+        not _is_blank(point.get(key))
         for key in ("place", "time", "arrive", "depart")
     )
 
@@ -49,16 +61,16 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
             return _fail(f"地点{i + 1} の形式が不正です")
 
         point = {
-            "place": _strip_str(item.get("place")),
-            "time": _strip_str(item.get("time")),
-            "arrive": _strip_str(item.get("arrive")),
-            "depart": _strip_str(item.get("depart")),
+            "place": _trim_end(item.get("place")),
+            "time": _trim_time(item.get("time")),
+            "arrive": _trim_time(item.get("arrive")),
+            "depart": _trim_time(item.get("depart")),
         }
 
         if i == 0:
-            if not point["place"]:
+            if _is_blank(point["place"]):
                 return _fail("地点1の場所は必須です")
-            if not point["time"]:
+            if _is_blank(point["time"]):
                 return _fail("地点1の時刻は必須です")
             points.append({"place": point["place"], "time": point["time"]})
             continue
@@ -77,7 +89,7 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
         elif point["time"]:
             normalized["time"] = point["time"]
 
-        if not normalized.get("place") and len(normalized) == 1:
+        if _is_blank(normalized.get("place")) and len(normalized) == 1:
             return _fail(f"地点{i + 1} に場所または時刻を入力してください")
 
         points.append(normalized)
@@ -91,8 +103,8 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
     for i, leg in enumerate(legs_raw):
         if not isinstance(leg, dict):
             return _fail(f"経由{i + 1} の形式が不正です")
-        memo = _strip_str(leg.get("memo"))
-        if i >= len(points) - 1 and memo:
+        memo = _trim_end(leg.get("memo"))
+        if i >= len(points) - 1 and not _is_blank(memo):
             return _fail("最後の地点より後の経由メモは指定できません")
 
     return None
