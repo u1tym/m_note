@@ -221,29 +221,28 @@ function partIndex(part: PartInfo): number {
 
     <ul class="parts-list">
       <li v-for="part in sortedParts" :key="part.id" class="part-card">
-        <div class="part-row">
-          <div class="part-reorder">
-            <button
-              type="button"
-              class="reorder-btn"
-              :disabled="partIndex(part) === 0"
-              aria-label="上へ"
-              @click.stop="onMovePart(part, -1)"
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              class="reorder-btn"
-              :disabled="partIndex(part) === sortedParts.length - 1"
-              aria-label="下へ"
-              @click.stop="onMovePart(part, 1)"
-            >
-              ↓
-            </button>
-          </div>
+        <div class="part-reorder">
+          <button
+            type="button"
+            class="reorder-btn"
+            :disabled="partIndex(part) === 0"
+            aria-label="上へ"
+            @click.stop="onMovePart(part, -1)"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            class="reorder-btn"
+            :disabled="partIndex(part) === sortedParts.length - 1"
+            aria-label="下へ"
+            @click.stop="onMovePart(part, 1)"
+          >
+            ↓
+          </button>
+        </div>
 
-          <button type="button" class="part-view" @click="openPart(part)">
+        <button type="button" class="part-view" @click="openPart(part)">
             <span class="part-type">{{ partLabel(part.ptype) }}</span>
 
             <template v-if="part.ptype === 'jpeg' || part.ptype === 'png'">
@@ -268,8 +267,7 @@ function partIndex(part: PartInfo): number {
             <template v-else>
               <pre class="part-text-view">{{ part.data }}</pre>
             </template>
-          </button>
-        </div>
+        </button>
       </li>
     </ul>
 
