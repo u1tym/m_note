@@ -83,7 +83,14 @@ function onMoveFile(file: FileItem, direction: -1 | 1): void {
       >
         {{ isExpanded(node.id, expandedIds) ? '📂' : '📁' }}
       </button>
-      <button type="button" class="folder-name" @click="emit('selectFolder', node.id)">
+      <button
+        type="button"
+        class="folder-name"
+        @click="
+          emit('selectFolder', node.id)
+          emit('toggleExpand', node.id)
+        "
+      >
         {{ node.name }}
       </button>
       <div class="row-actions">
@@ -151,7 +158,14 @@ function onMoveFile(file: FileItem, direction: -1 | 1): void {
         class="file-row"
         :style="{ paddingLeft: `${(depth + 1) * 12 + 8}px` }"
       >
-        <span class="tree-row-icon" aria-hidden="true">📄</span>
+        <button
+          type="button"
+          class="tree-row-icon"
+          :aria-label="`${file.title} を開く`"
+          @click="emit('openFile', file.id)"
+        >
+          📄
+        </button>
         <button type="button" class="file-name" @click="emit('openFile', file.id)">
           {{ file.title }}
         </button>

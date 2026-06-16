@@ -144,7 +144,8 @@ textarea {
 
 .expand-btn,
 .folder-name,
-.file-name {
+.file-name,
+.tree-row-icon {
   border: none;
   background: none;
   cursor: pointer;
