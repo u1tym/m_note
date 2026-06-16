@@ -16,6 +16,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: ActionPlanData]
 }>()
 
+const localPlan = ref<ActionPlanData>(normalizeActionPlan(props.modelValue))
+
 /** 地点2以降: 単一時刻 vs 到着・出発 */
 const splitModeByIndex = ref<Record<number, boolean>>({})
 
@@ -32,12 +34,23 @@ function syncSplitModes(plan: ActionPlanData): void {
 
 watch(
   () => props.modelValue,
+  (plan) => {
+    localPlan.value = normalizeActionPlan(plan)
+    syncSplitModes(localPlan.value)
+  },
+  { deep: true },
+)
+
+watch(
+  localPlan,
   (plan) => syncSplitModes(plan),
   { immediate: true, deep: true },
 )
 
-function update(plan: ActionPlanData): void {
-  emit('update:modelValue', normalizeActionPlan(plan))
+function emitUpdate(plan: ActionPlanData): void {
+  const normalized = normalizeActionPlan(plan)
+  localPlan.value = normalized
+  emit('update:modelValue', normalized)
 }
 
 function setPointField(
@@ -45,7 +58,7 @@ function setPointField(
   field: 'place' | 'time' | 'arrive' | 'depart',
   value: string,
 ): void {
-  const plan = normalizeActionPlan(structuredClone(props.modelValue))
+  const plan = structuredClone(localPlan.value)
   const point = plan.points[index]
   if (!point) {
     return
@@ -60,21 +73,21 @@ function setPointField(
     delete point.time
     splitModeByIndex.value[index] = true
   }
-  update(plan)
+  emitUpdate(plan)
 }
 
 function setLegMemo(index: number, memo: string): void {
-  const plan = normalizeActionPlan(structuredClone(props.modelValue))
+  const plan = structuredClone(localPlan.value)
   if (!plan.legs[index]) {
     return
   }
   plan.legs[index].memo = memo
-  update(plan)
+  emitUpdate(plan)
 }
 
 function toggleSplitMode(index: number, useSplit: boolean): void {
   splitModeByIndex.value[index] = useSplit
-  const plan = normalizeActionPlan(structuredClone(props.modelValue))
+  const plan = structuredClone(localPlan.value)
   const point = plan.points[index]
   if (!point) {
     return
@@ -94,15 +107,15 @@ function toggleSplitMode(index: number, useSplit: boolean): void {
       point.time = ''
     }
   }
-  update(plan)
+  emitUpdate(plan)
 }
 
 function onAddPoint(): void {
-  update(addNextPoint(props.modelValue))
+  emitUpdate(addNextPoint(localPlan.value))
 }
 
 function onRemovePoint(index: number): void {
-  update(removePoint(props.modelValue, index))
+  emitUpdate(removePoint(localPlan.value, index))
 }
 
 function isSplitMode(index: number): boolean {
@@ -112,7 +125,7 @@ function isSplitMode(index: number): boolean {
 
 <template>
   <div class="action-plan-editor">
-    <template v-for="(point, index) in modelValue.points" :key="index">
+    <template v-for="(point, index) in localPlan.points" :key="index">
       <fieldset class="action-point-fieldset">
         <legend>
           地点{{ index + 1 }}
@@ -214,13 +227,13 @@ function isSplitMode(index: number): boolean {
       </fieldset>
 
       <label
-        v-if="index < modelValue.points.length - 1"
+        v-if="index < localPlan.points.length - 1"
         class="action-field action-leg-field"
       >
         <span>経由{{ index + 1 }}-{{ index + 2 }}メモ</span>
         <input
           type="text"
-          :value="modelValue.legs[index]?.memo ?? ''"
+          :value="localPlan.legs[index]?.memo ?? ''"
           placeholder="例: 山手線"
           @input="setLegMemo(index, ($event.target as HTMLInputElement).value)"
         />

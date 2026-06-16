@@ -129,6 +129,14 @@ watch(newType, (type) => {
   }
 })
 
+function onNewActionPlanUpdate(plan: ActionPlanData): void {
+  newActionPlan.value = plan
+}
+
+function onEditActionPlanUpdate(plan: ActionPlanData): void {
+  editActionPlan.value = plan
+}
+
 async function onPickBinaryFileForNew(): Promise<void> {
   const file = await pickFile(acceptForPartType(newType.value))
   if (!file) {
@@ -417,7 +425,10 @@ function partIndex(part: PartInfo): number {
         <template v-else>
           <div class="part-edit-form">
             <template v-if="isActionType(activePart.ptype)">
-              <ActionPlanEditor v-model="editActionPlan" />
+              <ActionPlanEditor
+                :model-value="editActionPlan"
+                @update:model-value="onEditActionPlanUpdate"
+              />
             </template>
             <template v-else-if="isBinaryType(activePart.ptype)">
               <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
@@ -462,7 +473,11 @@ function partIndex(part: PartInfo): number {
           {{ opt.label }}
         </option>
       </select>
-      <ActionPlanEditor v-if="isActionType(newType)" v-model="newActionPlan" />
+      <ActionPlanEditor
+        v-if="isActionType(newType)"
+        :model-value="newActionPlan"
+        @update:model-value="onNewActionPlanUpdate"
+      />
       <textarea
         v-else-if="!isBinaryType(newType)"
         v-model="newData"
