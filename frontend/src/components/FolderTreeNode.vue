@@ -65,6 +65,11 @@ function onMoveFile(file: FileItem, direction: -1 | 1): void {
   }
   emit('reorderFile', props.node.id, file.id, target.id)
 }
+
+function onClickFolderName(): void {
+  emit('selectFolder', props.node.id)
+  emit('toggleExpand', props.node.id)
+}
 </script>
 
 <template>
@@ -86,10 +91,7 @@ function onMoveFile(file: FileItem, direction: -1 | 1): void {
       <button
         type="button"
         class="folder-name"
-        @click="
-          emit('selectFolder', node.id)
-          emit('toggleExpand', node.id)
-        "
+        @click="onClickFolderName"
       >
         {{ node.name }}
       </button>
