@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+defineOptions({ name: 'HomeView' })
+
 import {
   createFolder,
   createFile,

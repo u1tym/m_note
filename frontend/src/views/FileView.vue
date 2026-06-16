@@ -94,6 +94,10 @@ async function onReorderParts(partsId1: number, partsId2: number): Promise<void>
 }
 
 function goBack(): void {
+  if (window.history.state?.back != null) {
+    router.back()
+    return
+  }
   router.push({ name: 'home' })
 }
 

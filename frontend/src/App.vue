@@ -4,6 +4,10 @@ import { RouterView } from 'vue-router'
 
 <template>
   <div class="app-shell">
-    <RouterView />
+    <RouterView v-slot="{ Component }">
+      <KeepAlive include="HomeView">
+        <component :is="Component" />
+      </KeepAlive>
+    </RouterView>
   </div>
 </template>
