@@ -6,6 +6,7 @@ import {
   createPart,
   deletePart,
   getFile,
+  swapPartOrder,
   updatePart,
 } from '../api/noteApi'
 import type { FileGetResponse, PartInfo, PartsType } from '../api/types'
@@ -80,6 +81,18 @@ async function onDeletePart(partsId: number): Promise<void> {
   }
 }
 
+async function onReorderParts(partsId1: number, partsId2: number): Promise<void> {
+  try {
+    const res = await swapPartOrder(numericFileId.value, partsId1, partsId2)
+    if (!res.result) {
+      throw new Error(res.reason ?? '表示順の変更に失敗しました')
+    }
+    await load()
+  } catch (e) {
+    error.value = formatApiError(e)
+  }
+}
+
 function goBack(): void {
   router.push({ name: 'home' })
 }
@@ -106,6 +119,7 @@ onMounted(() => {
       @add="onAddPart"
       @update="onUpdatePart"
       @delete="onDeletePart"
+      @reorder="onReorderParts"
     />
   </div>
 </template>

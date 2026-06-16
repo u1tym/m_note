@@ -118,3 +118,15 @@ export async function getPartRevision(revisionId: number): Promise<PartRevisionG
 export async function deletePart(partsId: number): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/delete', { parts_id: partsId })
 }
+
+export async function swapPartOrder(
+  fileId: number,
+  partsId1: number,
+  partsId2: number,
+): Promise<ResultResponse> {
+  return postNote<ResultResponse>('/parts/swap-order', {
+    file_id: fileId,
+    parts_id_1: partsId1,
+    parts_id_2: partsId2,
+  })
+}

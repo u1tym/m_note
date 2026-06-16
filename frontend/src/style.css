@@ -143,7 +143,149 @@ textarea {
 .part-card {
   border: 1px solid #e4e4e7;
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
+}
+
+.part-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.part-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.reorder-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.part-view {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.part-view:hover {
+  background: #f4f4f5;
+}
+
+.part-view:active {
+  background: #e4e4e7;
+}
+
+.part-text-view {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.part-binary-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.9375rem;
+  word-break: break-all;
+  color: #2563eb;
+}
+
+.part-url {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  word-break: break-all;
+  color: #2563eb;
+}
+
+.part-sheet {
+  max-height: 85dvh;
+}
+
+.part-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.part-sheet-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sheet-close {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+
+.part-sheet-preview {
+  margin-bottom: 12px;
+  max-height: 40dvh;
+  overflow-y: auto;
+}
+
+.part-sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.part-sheet-actions .primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.part-sheet-actions button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 0.9375rem;
+}
+
+.part-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.part-url-link {
+  word-break: break-all;
+  color: #2563eb;
 }
 
 .part-header {
