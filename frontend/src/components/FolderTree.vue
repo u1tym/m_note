@@ -40,8 +40,8 @@ async function toggleExpand(folderId: number): Promise<void> {
   emit('expand', folderId)
 }
 
-function promptName(label: string): string | null {
-  const name = window.prompt(label)
+function promptName(label: string, defaultValue = ''): string | null {
+  const name = window.prompt(label, defaultValue)
   if (!name?.trim()) {
     return null
   }
@@ -63,7 +63,7 @@ function onCreateChild(parentId: number): void {
 }
 
 function onRenameFolder(folderId: number, current: string): void {
-  const name = promptName('新しいフォルダ名')
+  const name = promptName('新しいフォルダ名', current)
   if (name && name !== current) {
     emit('renameFolder', folderId, name)
   }
@@ -77,7 +77,7 @@ function onCreateFile(folderId: number): void {
 }
 
 function onRenameFile(file: FileItem, folderId: number): void {
-  const title = promptName('新しいファイル名')
+  const title = promptName('新しいファイル名', file.title)
   if (title && title !== file.title) {
     emit('renameFile', file.id, title, folderId)
   }
