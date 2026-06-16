@@ -37,6 +37,24 @@ def _point_is_empty(point: dict[str, Any]) -> bool:
     )
 
 
+def _normalize_point_fields(item: dict[str, Any]) -> dict[str, str]:
+    return {
+        "place": _trim_end(item.get("place")),
+        "time": _trim_time(item.get("time")),
+        "arrive": _trim_time(item.get("arrive")),
+        "depart": _trim_time(item.get("depart")),
+    }
+
+
+def _plan_has_content(points: list[dict[str, str]], legs_raw: list[Any]) -> bool:
+    if any(not _point_is_empty(p) for p in points):
+        return True
+    for leg in legs_raw:
+        if isinstance(leg, dict) and not _is_blank(_trim_end(leg.get("memo"))):
+            return True
+    return False
+
+
 def validate_action_plan_data(data: str) -> ResultResponse | None:
     try:
         raw = json.loads(data)
@@ -50,7 +68,7 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
     legs_raw = raw.get("legs")
 
     if not isinstance(points_raw, list) or len(points_raw) < 1:
-        return _fail("action パーツには少なくとも地点1が必要です")
+        return _fail("action パーツには points 配列が1件以上必要です")
 
     if not isinstance(legs_raw, list):
         return _fail("action パーツの legs は配列である必要があります")
@@ -60,22 +78,20 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
         if not isinstance(item, dict):
             return _fail(f"地点{i + 1} の形式が不正です")
 
-        point = {
-            "place": _trim_end(item.get("place")),
-            "time": _trim_time(item.get("time")),
-            "arrive": _trim_time(item.get("arrive")),
-            "depart": _trim_time(item.get("depart")),
-        }
+        point = _normalize_point_fields(item)
 
         if i == 0:
-            if _is_blank(point["place"]):
-                return _fail("地点1の場所は必須です")
-            if _is_blank(point["time"]):
-                return _fail("地点1の時刻は必須です")
+            has_later_points = any(
+                not _point_is_empty(_normalize_point_fields(p))
+                for p in points_raw[1:]
+                if isinstance(p, dict)
+            )
+            if _point_is_empty(point) and not has_later_points:
+                continue
             points.append({"place": point["place"], "time": point["time"]})
             continue
 
-        if _point_is_empty(item):
+        if _point_is_empty(point):
             continue
 
         normalized: dict[str, str] = {"place": point["place"]}
@@ -94,8 +110,8 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
 
         points.append(normalized)
 
-    if len(points) < 1:
-        return _fail("地点1は必須です")
+    if not _plan_has_content(points, legs_raw):
+        return _fail("行動予定の内容を1件以上入力してください")
 
     if len(legs_raw) != max(0, len(points) - 1):
         return _fail("経由メモ（legs）の数は地点数 - 1 である必要があります")

@@ -43,6 +43,13 @@ function pointIsEmpty(point: ActionPlanPoint): boolean {
   )
 }
 
+function planHasContent(plan: ActionPlanData): boolean {
+  if (plan.points.some((p) => !pointIsEmpty(p))) {
+    return true
+  }
+  return plan.legs.some((leg) => !isBlank(leg.memo))
+}
+
 export function emptyActionPlan(): ActionPlanData {
   return {
     points: [{ place: '', time: '' }],
@@ -87,6 +94,10 @@ export function normalizeActionPlan(plan: ActionPlanData): ActionPlanData {
 
   editor.points.forEach((point, index) => {
     if (index === 0) {
+      const hasLaterPoints = editor.points.slice(1).some((p) => !pointIsEmpty(p))
+      if (pointIsEmpty(point) && !hasLaterPoints) {
+        return
+      }
       points.push({
         place: trimEndField(point.place),
         time: trimTime(point.time),
@@ -187,11 +198,8 @@ export function serializeActionPlan(plan: ActionPlanData): string {
 
 export function validateActionPlan(plan: ActionPlanData): string | null {
   const normalized = normalizeActionPlan(plan)
-  if (isBlank(normalized.points[0]?.place)) {
-    return '地点1の場所は必須です'
-  }
-  if (isBlank(normalized.points[0]?.time)) {
-    return '地点1の時刻は必須です'
+  if (!planHasContent(normalized)) {
+    return '行動予定の内容を1件以上入力してください'
   }
   for (let i = 1; i < normalized.points.length; i += 1) {
     const point = normalized.points[i]

@@ -140,7 +140,7 @@ function isSplitMode(index: number): boolean {
 
         <template v-if="index === 0">
           <label class="action-field">
-            <span>時刻 <em class="required">必須</em></span>
+            <span>時刻</span>
             <input
               type="text"
               :value="point.time ?? ''"
@@ -149,7 +149,7 @@ function isSplitMode(index: number): boolean {
             />
           </label>
           <label class="action-field">
-            <span>場所 <em class="required">必須</em></span>
+            <span>場所</span>
             <input
               type="text"
               :value="point.place"
