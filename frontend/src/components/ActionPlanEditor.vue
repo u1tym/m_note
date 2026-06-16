@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 
 import {
   addNextPoint,
-  normalizeActionPlan,
+  normalizeActionPlanForEditor,
   removePoint,
   type ActionPlanData,
 } from '../utils/actionPlan'
@@ -16,7 +16,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: ActionPlanData]
 }>()
 
-const localPlan = ref<ActionPlanData>(normalizeActionPlan(props.modelValue))
+const localPlan = ref<ActionPlanData>(normalizeActionPlanForEditor(props.modelValue))
 
 /** 地点2以降: 単一時刻 vs 到着・出発 */
 const splitModeByIndex = ref<Record<number, boolean>>({})
@@ -35,7 +35,7 @@ function syncSplitModes(plan: ActionPlanData): void {
 watch(
   () => props.modelValue,
   (plan) => {
-    localPlan.value = normalizeActionPlan(plan)
+    localPlan.value = normalizeActionPlanForEditor(plan)
     syncSplitModes(localPlan.value)
   },
   { deep: true },
@@ -48,7 +48,7 @@ watch(
 )
 
 function emitUpdate(): void {
-  const normalized = normalizeActionPlan(localPlan.value)
+  const normalized = normalizeActionPlanForEditor(localPlan.value)
   localPlan.value = normalized
   emit('update:modelValue', normalized)
 }

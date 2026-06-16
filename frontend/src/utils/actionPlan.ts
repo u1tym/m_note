@@ -63,9 +63,10 @@ export function parseActionPlan(data: string): ActionPlanData | null {
 }
 
 export function normalizeActionPlan(plan: ActionPlanData): ActionPlanData {
+  const editor = normalizeActionPlanForEditor(plan)
   const points: ActionPlanPoint[] = []
 
-  plan.points.forEach((point, index) => {
+  editor.points.forEach((point, index) => {
     if (index === 0) {
       points.push({
         place: strip(point.place),
@@ -91,6 +92,44 @@ export function normalizeActionPlan(plan: ActionPlanData): ActionPlanData {
       normalized.time = time
     }
     points.push(normalized)
+  })
+
+  if (points.length === 0) {
+    points.push({ place: '', time: '' })
+  }
+
+  const legs: ActionPlanLeg[] = []
+  for (let i = 0; i < points.length - 1; i += 1) {
+    legs.push({ memo: editor.legs[i]?.memo?.trim() ?? '' })
+  }
+
+  return { points, legs }
+}
+
+/** 編集中用。空の地点も保持する（地点追加直後のプレースホルダー用） */
+export function normalizeActionPlanForEditor(plan: ActionPlanData): ActionPlanData {
+  const points = plan.points.map((point, index) => {
+    if (index === 0) {
+      return {
+        place: strip(point.place),
+        time: strip(point.time),
+      }
+    }
+    const normalized: ActionPlanPoint = { place: strip(point.place) }
+    const time = strip(point.time)
+    const arrive = strip(point.arrive)
+    const depart = strip(point.depart)
+    if (arrive || depart) {
+      if (arrive) {
+        normalized.arrive = arrive
+      }
+      if (depart) {
+        normalized.depart = depart
+      }
+    } else if (time) {
+      normalized.time = time
+    }
+    return normalized
   })
 
   if (points.length === 0) {
@@ -166,7 +205,7 @@ export function formatPointTimes(point: ActionPlanPoint, index: number): string 
 }
 
 export function addNextPoint(plan: ActionPlanData): ActionPlanData {
-  const normalized = normalizeActionPlan(plan)
+  const normalized = normalizeActionPlanForEditor(plan)
   normalized.points.push({ place: '' })
   normalized.legs.push({ memo: '' })
   return normalized
@@ -174,12 +213,12 @@ export function addNextPoint(plan: ActionPlanData): ActionPlanData {
 
 export function removePoint(plan: ActionPlanData, index: number): ActionPlanData {
   if (index <= 0 || index >= plan.points.length) {
-    return normalizeActionPlan(plan)
+    return normalizeActionPlanForEditor(plan)
   }
-  const normalized = normalizeActionPlan(plan)
+  const normalized = normalizeActionPlanForEditor(plan)
   normalized.points.splice(index, 1)
   normalized.legs.splice(index - 1, 1)
-  return normalizeActionPlan(normalized)
+  return normalizeActionPlanForEditor(normalized)
 }
 
 export function pointUsesSplitTime(point: ActionPlanPoint, index: number): boolean {
