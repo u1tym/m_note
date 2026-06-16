@@ -1,5 +1,5 @@
 /** パーツ種別（DB: note.parts_type） */
-export type PartsType = 'jpeg' | 'png' | 'text' | 'tex' | 'md' | 'binary' | 'url'
+export type PartsType = 'jpeg' | 'png' | 'text' | 'tex' | 'md' | 'binary' | 'url' | 'action'
 
 export interface ResultResponse {
   result: boolean

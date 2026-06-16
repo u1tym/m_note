@@ -42,10 +42,11 @@
 | `md` | Markdown |
 | `binary` | バイナリ（`data` は Base64 文字列） |
 | `url` | URL 文字列 |
+| `action` | 行動予定（`data` は JSON。時刻・地点・経由メモの構造） |
 
 ```sql
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url'));
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action'));
 ```
 
 ---
@@ -201,7 +202,7 @@ accounts (public)
 create schema if not exists note;
 
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url'));
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action'));
 
 create table note.folder (
     id             serial  primary key,

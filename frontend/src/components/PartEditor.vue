@@ -13,6 +13,15 @@ import {
   pickFile,
   readFileAsBase64,
 } from '../utils/binaryPart'
+import {
+  emptyActionPlan,
+  parseActionPlan,
+  serializeActionPlan,
+  validateActionPlan,
+  type ActionPlanData,
+} from '../utils/actionPlan'
+import ActionPlanEditor from './ActionPlanEditor.vue'
+import ActionPlanView from './ActionPlanView.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
 import TexPreview from './TexPreview.vue'
 
@@ -38,6 +47,8 @@ const activePartId = ref<number | null>(null)
 const sheetMode = ref<'actions' | 'edit'>('actions')
 const editData = ref('')
 const editFilename = ref('')
+const editActionPlan = ref<ActionPlanData>(emptyActionPlan())
+const newActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const saving = ref(false)
 
 const partTypeOptions: { value: PartsType; label: string }[] = [
@@ -45,6 +56,7 @@ const partTypeOptions: { value: PartsType; label: string }[] = [
   { value: 'md', label: 'Markdown' },
   { value: 'tex', label: 'TeX' },
   { value: 'url', label: 'URL' },
+  { value: 'action', label: '行動予定' },
   { value: 'jpeg', label: 'JPEG' },
   { value: 'png', label: 'PNG' },
   { value: 'binary', label: 'バイナリ' },
@@ -58,6 +70,10 @@ const activePart = computed(() =>
 
 function isBinaryType(type: PartsType): boolean {
   return type === 'jpeg' || type === 'png' || type === 'binary'
+}
+
+function isActionType(type: PartsType): boolean {
+  return type === 'action'
 }
 
 function hasPreview(type: PartsType): boolean {
@@ -79,6 +95,7 @@ function closeSheet(): void {
   sheetMode.value = 'actions'
   editData.value = ''
   editFilename.value = ''
+  editActionPlan.value = emptyActionPlan()
 }
 
 function startEdit(): void {
@@ -86,7 +103,11 @@ function startEdit(): void {
   if (!part) {
     return
   }
-  editData.value = part.data
+  if (isActionType(part.ptype)) {
+    editActionPlan.value = parseActionPlan(part.data) ?? emptyActionPlan()
+  } else {
+    editData.value = part.data
+  }
   editFilename.value = part.filename
   sheetMode.value = 'edit'
   localError.value = null
@@ -97,6 +118,14 @@ watch(activePartId, (id) => {
     sheetMode.value = 'actions'
     editData.value = ''
     editFilename.value = ''
+    editActionPlan.value = emptyActionPlan()
+  }
+})
+
+watch(newType, (type) => {
+  if (type === 'action') {
+    newActionPlan.value = emptyActionPlan()
+    newData.value = ''
   }
 })
 
@@ -111,6 +140,16 @@ async function onPickBinaryFileForNew(): Promise<void> {
 
 async function onAdd(): Promise<void> {
   localError.value = null
+  if (isActionType(newType.value)) {
+    const err = validateActionPlan(newActionPlan.value)
+    if (err) {
+      localError.value = err
+      return
+    }
+    emit('add', 'action', serializeActionPlan(newActionPlan.value), '')
+    newActionPlan.value = emptyActionPlan()
+    return
+  }
   if (isBinaryType(newType.value) && !newData.value) {
     await onPickBinaryFileForNew()
   }
@@ -184,6 +223,21 @@ async function onSaveEdit(): Promise<void> {
     return
   }
   localError.value = null
+  if (isActionType(part.ptype)) {
+    const err = validateActionPlan(editActionPlan.value)
+    if (err) {
+      localError.value = err
+      return
+    }
+    saving.value = true
+    try {
+      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '')
+      closeSheet()
+    } finally {
+      saving.value = false
+    }
+    return
+  }
   if (isBinaryType(part.ptype) && !editData.value) {
     localError.value = 'ファイルが必要です'
     return
@@ -258,6 +312,9 @@ function partIndex(part: PartInfo): number {
             <template v-else-if="part.ptype === 'url'">
               <span class="part-url">{{ part.data }}</span>
             </template>
+            <template v-else-if="part.ptype === 'action'">
+              <ActionPlanView :data="part.data" />
+            </template>
             <template v-else-if="part.ptype === 'md'">
               <MarkdownPreview :source="part.data" />
             </template>
@@ -308,6 +365,9 @@ function partIndex(part: PartInfo): number {
                 {{ activePart.data }}
               </a>
             </template>
+            <template v-else-if="activePart.ptype === 'action'">
+              <ActionPlanView :data="activePart.data" />
+            </template>
             <template v-else-if="activePart.ptype === 'md'">
               <MarkdownPreview :source="activePart.data" />
             </template>
@@ -356,7 +416,10 @@ function partIndex(part: PartInfo): number {
 
         <template v-else>
           <div class="part-edit-form">
-            <template v-if="isBinaryType(activePart.ptype)">
+            <template v-if="isActionType(activePart.ptype)">
+              <ActionPlanEditor v-model="editActionPlan" />
+            </template>
+            <template v-else-if="isBinaryType(activePart.ptype)">
               <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
               <p v-if="editData" class="binary-hint">約 {{ formatByteSize(editData.length) }}</p>
               <button
@@ -399,8 +462,9 @@ function partIndex(part: PartInfo): number {
           {{ opt.label }}
         </option>
       </select>
+      <ActionPlanEditor v-if="isActionType(newType)" v-model="newActionPlan" />
       <textarea
-        v-if="!isBinaryType(newType)"
+        v-else-if="!isBinaryType(newType)"
         v-model="newData"
         rows="4"
         :placeholder="newType === 'url' ? 'https://...' : '内容を入力'"

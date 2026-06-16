@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-PartsType = Literal["jpeg", "png", "text", "tex", "md", "binary", "url"]
+PartsType = Literal["jpeg", "png", "text", "tex", "md", "binary", "url", "action"]
 
 
 class ResultResponse(BaseModel):

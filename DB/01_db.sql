@@ -1,7 +1,7 @@
 create schema note;
 
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url'))
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action'))
 ;
 
 -- フォルダ管理

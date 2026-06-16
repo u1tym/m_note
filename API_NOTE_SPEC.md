@@ -352,11 +352,12 @@ HTTP **200**。本文は共通形式:
 
 **Input:** `{ "file_id": n, "type": "md", "data": "...", "filename": "optional" }`
 
-- `type`（API）→ DB の `ptype`
+- `type`（API）→ DB の `ptype`。許容値: `jpeg` / `png` / `text` / `tex` / `md` / `binary` / `url` / `action`
 - `jpeg` / `png` / `binary` のとき `data` は Base64 文字列
 - `jpeg` / `png` / `binary` のとき **`filename` 必須**（空不可）
+- `action`（行動予定）のとき `data` は **JSON 文字列**（構造は [D-4a](#d-4a-行動予定-action-の-data-形式)）
 
-**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename` を保存。
+**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename` を保存。`action` のときは data の JSON 構造を検証する。
 
 ---
 
@@ -389,7 +390,45 @@ HTTP **200**。本文は共通形式:
 - `filename` 省略時は既存値を維持
 - `jpeg` / `png` / `binary` では **`filename` 必須**（省略時は既存値が空ならエラー）
 
-**処理:** `ptype`・`data`・`filename` を更新。`jpeg` / `png` / `binary` で内容が変わる場合、更新前の状態を `note.parts_revision` に保存し、`PARTS_MAX_REVISIONS` を超える古い世代を削除する。
+**処理:** `ptype`・`data`・`filename` を更新。`jpeg` / `png` / `binary` で内容が変わる場合、更新前の状態を `note.parts_revision` に保存し、`PARTS_MAX_REVISIONS` を超える古い世代を削除する。`action` のときは data の JSON 構造を検証する。
+
+---
+
+### D-4a. 行動予定（`action`）の data 形式
+
+`ptype` / `type` が `action` のとき、`data` は次の JSON オブジェクトを文字列化したもの。
+
+```json
+{
+  "points": [
+    { "place": "東京駅", "time": "9:00" },
+    { "place": "新宿", "arrive": "10:00", "depart": "10:30" },
+    { "place": "渋谷", "time": "14:00" }
+  ],
+  "legs": [
+    { "memo": "山手線" },
+    { "memo": "" }
+  ]
+}
+```
+
+| フィールド | 説明 |
+|------------|------|
+| `points` | 地点の配列（1 件以上） |
+| `points[0]` | **地点1（必須）** — `place`（場所）と `time`（時刻）が必須。時刻は自由記述 |
+| `points[i]`（i ≥ 1） | **地点2以降（任意）** — `place` および `time` または `arrive` / `depart` は任意。空の地点は末尾のみ省略可 |
+| `points[i].time` | 単一時刻（地点2以降）。`arrive` / `depart` と同時指定不可 |
+| `points[i].arrive` | 到着時刻（地点2以降・任意） |
+| `points[i].depart` | 出発時刻（地点2以降・任意） |
+| `legs` | 経由メモの配列。長さは **`points.length - 1`** |
+| `legs[j].memo` | 地点 j+1 → j+2 間のメモ（任意・空文字可） |
+
+**検証ルール（API）**
+
+- 地点1: `place`・`time` 必須（空白不可）
+- 地点2以降: 全フィールド空の地点は無視（末尾の空地点のみ）
+- `legs` の件数は有効な `points` の件数 − 1 と一致すること
+- 地点2以降で `time` と `arrive` / `depart` を同時に指定しないこと
 
 ---
 

@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from note_api.app.action_plan import validate_action_plan_data
 from note_api.app.config import get_settings
 from note_api.app.models import File, Folder, Part, PartRevision
 from note_api.app.schemas import (
@@ -32,6 +33,12 @@ def _ok() -> ResultResponse:
 
 def _is_versioned_part_type(ptype: str) -> bool:
     return ptype in VERSIONED_PART_TYPES
+
+
+def _validate_data_for_type(ptype: str, data: str) -> ResultResponse | None:
+    if ptype == "action":
+        return validate_action_plan_data(data)
+    return None
 
 
 def _validate_filename_for_type(ptype: str, filename: str) -> ResultResponse | None:
@@ -692,6 +699,10 @@ def create_part(
     if invalid is not None:
         return invalid
 
+    invalid = _validate_data_for_type(ptype, data)
+    if invalid is not None:
+        return invalid
+
     part = Part(
         aid=aid,
         file=file_id,
@@ -730,6 +741,10 @@ def update_part(
 
     new_filename = part.filename if filename is None else filename.strip()
     invalid = _validate_filename_for_type(ptype, new_filename)
+    if invalid is not None:
+        return invalid
+
+    invalid = _validate_data_for_type(ptype, data)
     if invalid is not None:
         return invalid
 
