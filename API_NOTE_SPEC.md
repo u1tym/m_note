@@ -108,6 +108,14 @@ HTTP **200**。本文は共通形式:
 | D-4 | POST | `/parts/update` | パーツ編集 |
 | D-5 | POST | `/parts/swap-order` | パーツ表示順入れ替え |
 | D-6 | POST | `/parts/revision/get` | パーツ過去世代の取得（ダウンロード用） |
+| E-1 | POST | `/table/get` | 表の取得 |
+| E-2 | POST | `/table/cells/update` | セル更新 |
+| E-3 | POST | `/table/cells/paste` | セルペースト |
+| E-4 | POST | `/table/rows/insert` | 行挿入 |
+| E-5 | POST | `/table/rows/delete` | 行削除 |
+| E-6 | POST | `/table/cols/insert` | 列挿入 |
+| E-7 | POST | `/table/cols/delete` | 列削除 |
+| E-8 | POST | `/table/title/update` | 表タイトル更新 |
 | — | GET | `/health` | 稼働確認（認証不要） |
 
 ---
@@ -352,12 +360,13 @@ HTTP **200**。本文は共通形式:
 
 **Input:** `{ "file_id": n, "type": "md", "data": "...", "filename": "optional" }`
 
-- `type`（API）→ DB の `ptype`。許容値: `jpeg` / `png` / `text` / `tex` / `md` / `binary` / `url` / `action`
+- `type`（API）→ DB の `ptype`。許容値: `jpeg` / `png` / `text` / `tex` / `md` / `binary` / `url` / `action` / `table`
 - `jpeg` / `png` / `binary` のとき `data` は Base64 文字列
 - `jpeg` / `png` / `binary` のとき **`filename` 必須**（空不可）
 - `action`（行動予定）のとき `data` は **JSON 文字列**（構造は [D-4a](#d-4a-行動予定-action-の-data-形式)）
+- `table`（表）のとき **`data` は空文字**。サーバーが `note.table` を作成し、`parts.data` にその ID を格納する（初期 5×5）
 
-**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename` を保存。`action` のときは data の JSON 構造を検証する。
+**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename` を保存。`action` のときは data の JSON 構造を検証する。`table` のときは [D-4b](#d-4b-表-table) を参照。
 
 ---
 
@@ -434,6 +443,29 @@ HTTP **200**。本文は共通形式:
 
 ---
 
+### D-4b. 表（`table`）
+
+`ptype` / `type` が `table` のとき、`parts.data` には **`note.table.id` の文字列**を格納する。セルデータは `note.table_cell` に保持する。
+
+**パーツ作成時:** `data` は空。サーバーが `note.table`（5 行 × 5 列）を作成し、生成 ID を `parts.data` に保存する。
+
+**セル項目**
+
+| 項目 | 説明 |
+|------|------|
+| `x`, `y` | 1 始まりの列・行 |
+| `cell_type` | `string` / `date` / `time` / `datetime` / `number` |
+| `input_value` | 入力値。`=` 始まりは数式 |
+| `display_format` | 型に応じた表示形式 |
+| `display_value` | サーバー算出済み表示値 |
+| `text_align` | 表示位置（`左寄せ` / `中央寄せ` / `右寄せ`） |
+
+**数式:** `Cell(x,y)` 参照（`$` で絶対座標）、四則演算 `+ - * /`、括弧、`If` / `And` / `Or` / `Not` と比較（`=` `>` `<`）。詳細は `NOTE_SPEC.md`。循環参照は `#CYCLE!`。
+
+**型と数式:** 数値型は数式の結果を数値として表示。文字列型は数式の結果を文字列として表示。いずれも結果の型がセル型と一致しない場合は `#VALUE!`。日付・時刻・日時型で数式は `#ERROR!`。
+
+---
+
 ### D-5. パーツ表示順入れ替え
 
 **POST** `/parts/swap-order`
@@ -486,6 +518,87 @@ HTTP **200**。本文は共通形式:
 ```
 
 **処理:** 自アカウントの `note.parts_revision` を取得。存在しない ID は HTTP 404。
+
+---
+
+## 5b. 表 API（E 系）
+
+### E-1. 表取得
+
+**POST** `/table/get`
+
+**Input:** `{ "table_id": n }`
+
+**Output**
+
+```json
+{
+  "table_id": 1,
+  "title": "売上表",
+  "row_count": 5,
+  "col_count": 5,
+  "cells": [
+    {
+      "x": 1,
+      "y": 1,
+      "cell_type": "number",
+      "input_value": "=1+2",
+      "display_format": "整数",
+      "display_value": "3",
+      "text_align": "左寄せ"
+    }
+  ]
+}
+```
+
+値のあるセルのみ返す（スパース）。
+
+---
+
+### E-2. セル更新
+
+**POST** `/table/cells/update`
+
+**Input:** `{ "table_id", "x", "y", "cell_type"?, "input_value"?, "display_format"?, "text_align"? }`
+
+**処理:** セルを upsert または `input_value` 空で削除。全セルの `display_value` を再計算して DB 更新。
+
+**Output:** E-1 と同形式（更新後の全セル）
+
+---
+
+### E-3. セルペースト
+
+**POST** `/table/cells/paste`
+
+**Input:** `{ "table_id", "x", "y", "source_input_value", "source_cell_type", "source_display_format", "offset_x", "offset_y" }`
+
+**処理:** 参照式の相対座標をオフセット分ずらしてから E-2 相当の更新を行う。
+
+---
+
+### E-4〜E-7. 行・列の挿入／削除
+
+| ID | パス | Input |
+|----|------|-------|
+| E-4 | `/table/rows/insert` | `{ "table_id", "at_row" }` |
+| E-5 | `/table/rows/delete` | `{ "table_id", "at_row" }` |
+| E-6 | `/table/cols/insert` | `{ "table_id", "at_col" }` |
+| E-7 | `/table/cols/delete` | `{ "table_id", "at_col" }` |
+
+**処理:** セル座標と数式内 `Cell()` 参照を自動調整。`display_value` を再計算。
+
+---
+
+### E-8. 表タイトル更新
+
+**POST** `/table/title/update`
+
+**Input:** `{ "table_id", "title" }`
+
+**処理:** `note.table.title` を更新する。セル内容は変更しない。
+
+**Output:** E-1 と同形式
 
 ---
 

@@ -23,6 +23,8 @@ import {
 import ActionPlanEditor from './ActionPlanEditor.vue'
 import ActionPlanView from './ActionPlanView.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
+import TableEditor from './TableEditor.vue'
+import TableView from './TableView.vue'
 import TexPreview from './TexPreview.vue'
 
 const props = defineProps<{
@@ -58,6 +60,7 @@ const partTypeOptions: { value: PartsType; label: string }[] = [
   { value: 'tex', label: 'TeX' },
   { value: 'url', label: 'URL' },
   { value: 'action', label: '行動予定' },
+  { value: 'table', label: '表' },
   { value: 'jpeg', label: 'JPEG' },
   { value: 'png', label: 'PNG' },
   { value: 'binary', label: 'バイナリ' },
@@ -77,6 +80,39 @@ function isActionType(type: PartsType): boolean {
   return type === 'action'
 }
 
+function isTableType(type: PartsType): boolean {
+  return type === 'table'
+}
+
+function tableIdFromPart(data: string): number {
+  return Number.parseInt(data, 10)
+}
+
+const tableRefreshTokens = ref<Record<number, number>>({})
+
+function tableRefreshToken(tableId: number): number {
+  return tableRefreshTokens.value[tableId] ?? 0
+}
+
+function bumpTableRefresh(tableId: number): void {
+  tableRefreshTokens.value = {
+    ...tableRefreshTokens.value,
+    [tableId]: tableRefreshToken(tableId) + 1,
+  }
+}
+
+function onTableUpdated(tableId: number): void {
+  bumpTableRefresh(tableId)
+}
+
+function backToTablePreview(): void {
+  const part = activePart.value
+  if (part?.ptype === 'table') {
+    bumpTableRefresh(tableIdFromPart(part.data))
+  }
+  sheetMode.value = 'actions'
+}
+
 function hasPreview(type: PartsType): boolean {
   return type === 'md' || type === 'tex'
 }
@@ -88,6 +124,10 @@ function openPart(part: PartInfo): void {
 }
 
 function closeSheet(): void {
+  const part = activePart.value
+  if (part?.ptype === 'table') {
+    bumpTableRefresh(tableIdFromPart(part.data))
+  }
   activePartId.value = null
   sheetMode.value = 'actions'
   editData.value = ''
@@ -122,6 +162,9 @@ watch(activePartId, (id) => {
 watch(newType, (type) => {
   if (type === 'action') {
     newActionPlan.value = emptyActionPlan()
+    newData.value = ''
+  }
+  if (type === 'table') {
     newData.value = ''
   }
 })
@@ -176,6 +219,11 @@ async function onAdd(): Promise<void> {
       return
     }
     emit('add', 'action', serializeActionPlan(newActionPlan.value), '')
+    finishAdd()
+    return
+  }
+  if (isTableType(newType.value)) {
+    emit('add', 'table', '', '')
     finishAdd()
     return
   }
@@ -347,6 +395,12 @@ function onOverlayClick(): void {
             <template v-else-if="part.ptype === 'action'">
               <ActionPlanView :data="part.data" />
             </template>
+            <template v-else-if="part.ptype === 'table'">
+              <TableView
+                :table-id="tableIdFromPart(part.data)"
+                :refresh-token="tableRefreshToken(tableIdFromPart(part.data))"
+              />
+            </template>
             <template v-else-if="part.ptype === 'md'">
               <MarkdownPreview :source="part.data" />
             </template>
@@ -398,6 +452,12 @@ function onOverlayClick(): void {
             </template>
             <template v-else-if="activePart.ptype === 'action'">
               <ActionPlanView :data="activePart.data" />
+            </template>
+            <template v-else-if="activePart.ptype === 'table'">
+              <TableView
+                :table-id="tableIdFromPart(activePart.data)"
+                :refresh-token="tableRefreshToken(tableIdFromPart(activePart.data))"
+              />
             </template>
             <template v-else-if="activePart.ptype === 'md'">
               <MarkdownPreview :source="activePart.data" />
@@ -453,6 +513,12 @@ function onOverlayClick(): void {
                 @update:model-value="onEditActionPlanUpdate"
               />
             </template>
+            <template v-else-if="isTableType(activePart.ptype)">
+              <TableEditor
+                :table-id="tableIdFromPart(activePart.data)"
+                @updated="onTableUpdated(tableIdFromPart(activePart.data))"
+              />
+            </template>
             <template v-else-if="isBinaryType(activePart.ptype)">
               <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
               <p v-if="editData" class="binary-hint">約 {{ formatByteSize(editData.length) }}</p>
@@ -480,10 +546,15 @@ function onOverlayClick(): void {
           </div>
 
           <div class="part-sheet-actions">
-            <button type="button" class="primary" :disabled="saving" @click="onSaveEdit">
-              {{ saving ? '保存中…' : '保存' }}
-            </button>
-            <button type="button" @click="sheetMode = 'actions'">キャンセル</button>
+            <template v-if="isTableType(activePart.ptype)">
+              <button type="button" @click="backToTablePreview">プレビューへ</button>
+            </template>
+            <template v-else>
+              <button type="button" class="primary" :disabled="saving" @click="onSaveEdit">
+                {{ saving ? '保存中…' : '保存' }}
+              </button>
+              <button type="button" @click="sheetMode = 'actions'">キャンセル</button>
+            </template>
           </div>
         </template>
       </div>
@@ -509,6 +580,7 @@ function onOverlayClick(): void {
           :model-value="newActionPlan"
           @update:model-value="onNewActionPlanUpdate"
         />
+        <p v-else-if="isTableType(newType)" class="table-add-hint">5×5 の空の表を作成します。</p>
         <textarea
           v-else-if="!isBinaryType(newType)"
           v-model="newData"

@@ -43,10 +43,11 @@
 | `binary` | バイナリ（`data` は Base64 文字列） |
 | `url` | URL 文字列 |
 | `action` | 行動予定（`data` は JSON。時刻・地点・経由メモの構造） |
+| `table` | 表（`data` は `note.table.id` の文字列） |
 
 ```sql
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action'));
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action', 'table'));
 ```
 
 ---
@@ -58,6 +59,8 @@ create domain note.parts_type as text
 | `note.folder` | フォルダ階層 |
 | `note.file` | ファイル（フォルダに所属） |
 | `note.parts` | ファイルを構成するパーツ |
+| `note.table` | 表パーツの本体（行数・列数） |
+| `note.table_cell` | 表のセル（スパース格納） |
 
 ---
 
@@ -151,9 +154,47 @@ create domain note.parts_type as text
 
 パーツは `deleted_number` ではなく **`is_deleted` フラグ**で論理削除する（フォルダ・ファイルとは方式が異なる）。
 
+`ptype = table` のとき、`data` には **`note.table.id` を10進文字列**で格納する。セル本体は `note.table_cell` にスパース格納する（値のないセルは行を持たない）。
+
 ---
 
-## 8. `note.parts_revision`（パーツ過去世代）
+## 8. `note.table`（表）
+
+表パーツ 1 件につき 1 行。行数・列数を保持する。
+
+| カラム | 型 | NULL | 既定値 | 説明 |
+|--------|-----|------|--------|------|
+| `id` | serial | NOT NULL | — | 主キー |
+| `aid` | integer | NOT NULL | — | アカウント ID |
+| `row_count` | integer | NOT NULL | `5` | 行数（1 以上） |
+| `col_count` | integer | NOT NULL | `5` | 列数（1 以上） |
+| `title` | text | NOT NULL | `''` | 表タイトル（パーツ表示時に表の上へ表示） |
+
+---
+
+## 9. `note.table_cell`（表セル）
+
+| カラム | 型 | NULL | 説明 |
+|--------|-----|------|------|
+| `id` | serial | NOT NULL | 主キー |
+| `table_id` | integer | NOT NULL | → `note.table(id)` ON DELETE CASCADE |
+| `x` | integer | NOT NULL | 列位置（1 始まり） |
+| `y` | integer | NOT NULL | 行位置（1 始まり） |
+| `cell_type` | text | NOT NULL | `string` / `date` / `time` / `datetime` / `number` |
+| `input_value` | text | NOT NULL | 入力値（`=` 始まりは数式） |
+| `display_format` | text | NOT NULL | 表示形式（文字列型は未使用可） |
+| `display_value` | text | NOT NULL | バックエンド算出済み表示値 |
+| `text_align` | text | NOT NULL | 表示位置（`左寄せ` / `中央寄せ` / `右寄せ`、既定 `左寄せ`） |
+
+| 名前 | 種別 | 定義 |
+|------|------|------|
+| `uq_note_table_cell_position` | UNIQUE | `(table_id, x, y)` |
+
+**スパース格納:** 値のないセルは行を作らない。入力値を空にしたら行を削除する。
+
+---
+
+## 10. `note.parts_revision`（パーツ過去世代）
 
 `jpeg` / `png` / `binary` パーツを **置き換え（update）** する直前に、変更前の内容をスナップショットとして保存する。保持件数は環境変数 `PARTS_MAX_REVISIONS`（既定 `3`）。超過分は古い世代から削除する。
 
@@ -180,7 +221,7 @@ create domain note.parts_type as text
 
 ---
 
-## 9. ER 概要
+## 11. ER 概要
 
 ```
 accounts (public)
@@ -189,20 +230,23 @@ accounts (public)
     │
     ├──< note.file (aid) ── belong ──> note.folder
     │
+    ├──< note.table (aid)
+    │         └──< note.table_cell (table_id)
+    │
     └──< note.parts (aid) ── file ──> note.file
-              │
+              │ data → note.table.id (ptype=table)
               └──< note.parts_revision (parts_id)
 ```
 
 ---
 
-## 10. 作成 DDL（参照用）
+## 12. 作成 DDL（参照用）
 
 ```sql
 create schema if not exists note;
 
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action'));
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action', 'table'));
 
 create table note.folder (
     id             serial  primary key,

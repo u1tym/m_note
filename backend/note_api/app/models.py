@@ -1,11 +1,11 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from note_api.app.database import Base
 
-PARTS_TYPES = ("jpeg", "png", "text", "tex", "md", "binary", "url")
+PARTS_TYPES = ("jpeg", "png", "text", "tex", "md", "binary", "url", "action", "table")
 
 
 class Account(Base):
@@ -86,3 +86,34 @@ class PartRevision(Base):
     ptype: Mapped[str] = mapped_column(Text, nullable=False)
     data: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class NoteTable(Base):
+    __tablename__ = "table"
+    __table_args__ = {"schema": "note"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    aid: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    col_count: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class TableCell(Base):
+    __tablename__ = "table_cell"
+    __table_args__ = (
+        UniqueConstraint("table_id", "x", "y", name="uq_note_table_cell_position"),
+        {"schema": "note"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    table_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("note.table.id", ondelete="CASCADE"), nullable=False
+    )
+    x: Mapped[int] = mapped_column(Integer, nullable=False)
+    y: Mapped[int] = mapped_column(Integer, nullable=False)
+    cell_type: Mapped[str] = mapped_column(Text, nullable=False)
+    input_value: Mapped[str] = mapped_column(Text, nullable=False)
+    display_format: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    display_value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    text_align: Mapped[str] = mapped_column(Text, nullable=False, default="左寄せ")

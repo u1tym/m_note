@@ -4,6 +4,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from note_api.app.action_plan import validate_action_plan_data
+from note_api.app.services import table_service
 from note_api.app.config import get_settings
 from note_api.app.models import File, Folder, Part, PartRevision
 from note_api.app.schemas import (
@@ -35,9 +36,13 @@ def _is_versioned_part_type(ptype: str) -> bool:
     return ptype in VERSIONED_PART_TYPES
 
 
-def _validate_data_for_type(ptype: str, data: str) -> ResultResponse | None:
+def _validate_data_for_type(db: Session, aid: int, ptype: str, data: str) -> ResultResponse | None:
     if ptype == "action":
         return validate_action_plan_data(data)
+    if ptype == "table":
+        if not data.strip():
+            return None
+        return table_service.validate_table_part_data(db, aid, data)
     return None
 
 
@@ -699,9 +704,16 @@ def create_part(
     if invalid is not None:
         return invalid
 
-    invalid = _validate_data_for_type(ptype, data)
+    invalid = _validate_data_for_type(db, aid, ptype, data)
     if invalid is not None:
         return invalid
+
+    part_data = data
+    if ptype == "table":
+        if data.strip():
+            return _fail("table パーツ作成時の data は空である必要があります")
+        table_row = table_service.create_table_for_part(db, aid)
+        part_data = str(table_row.id)
 
     part = Part(
         aid=aid,
@@ -709,7 +721,7 @@ def create_part(
         dorder=_next_part_dorder(db, aid, file_id),
         is_deleted=False,
         ptype=ptype,
-        data=data,
+        data=part_data,
         filename=filename,
     )
     db.add(part)
@@ -744,9 +756,12 @@ def update_part(
     if invalid is not None:
         return invalid
 
-    invalid = _validate_data_for_type(ptype, data)
+    invalid = _validate_data_for_type(db, aid, ptype, data)
     if invalid is not None:
         return invalid
+
+    if ptype == "table" and part.ptype != "table":
+        return _fail("既存パーツの種別を table に変更することはできません")
 
     content_changed = part.data != data or part.ptype != ptype or part.filename != new_filename
     if _is_versioned_part_type(part.ptype) and content_changed:

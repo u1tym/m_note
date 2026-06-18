@@ -1,5 +1,5 @@
 /** パーツ種別（DB: note.parts_type） */
-export type PartsType = 'jpeg' | 'png' | 'text' | 'tex' | 'md' | 'binary' | 'url' | 'action'
+export type PartsType = 'jpeg' | 'png' | 'text' | 'tex' | 'md' | 'binary' | 'url' | 'action' | 'table'
 
 export interface ResultResponse {
   result: boolean
@@ -69,6 +69,32 @@ export interface FileGetResponse {
   belong: BelongInfo
   title: string
   parts: PartInfo[]
+}
+
+export interface TableCellItem {
+  x: number
+  y: number
+  cell_type: string
+  input_value: string
+  display_format: string
+  display_value: string
+  text_align: string
+}
+
+export interface TableGetResponse {
+  table_id: number
+  title: string
+  row_count: number
+  col_count: number
+  cells: TableCellItem[]
+}
+
+export interface TableMutationResponse {
+  table_id: number
+  title: string
+  row_count: number
+  col_count: number
+  cells: TableCellItem[]
 }
 
 export interface MeResponse {

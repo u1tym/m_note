@@ -5,6 +5,8 @@ import type {
   PartRevisionGetResponse,
   PartsType,
   ResultResponse,
+  TableGetResponse,
+  TableMutationResponse,
 } from './types'
 
 export async function listItems(
@@ -152,5 +154,103 @@ export async function swapPartOrder(
     file_id: fileId,
     parts_id_1: partsId1,
     parts_id_2: partsId2,
+  })
+}
+
+export async function getTable(tableId: number): Promise<TableGetResponse> {
+  return postNote<TableGetResponse>('/table/get', { table_id: tableId })
+}
+
+export async function updateTableTitle(
+  tableId: number,
+  title: string,
+): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/title/update', {
+    table_id: tableId,
+    title,
+  })
+}
+
+export async function updateTableCell(params: {
+  tableId: number
+  x: number
+  y: number
+  cellType?: string
+  inputValue?: string
+  displayFormat?: string
+  textAlign?: string
+}): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/cells/update', {
+    table_id: params.tableId,
+    x: params.x,
+    y: params.y,
+    cell_type: params.cellType ?? null,
+    input_value: params.inputValue ?? null,
+    display_format: params.displayFormat ?? null,
+    text_align: params.textAlign ?? null,
+  })
+}
+
+export async function pasteTableCell(params: {
+  tableId: number
+  x: number
+  y: number
+  sourceInputValue: string
+  sourceCellType: string
+  sourceDisplayFormat: string
+  sourceTextAlign?: string
+  offsetX: number
+  offsetY: number
+}): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/cells/paste', {
+    table_id: params.tableId,
+    x: params.x,
+    y: params.y,
+    source_input_value: params.sourceInputValue,
+    source_cell_type: params.sourceCellType,
+    source_display_format: params.sourceDisplayFormat,
+    source_text_align: params.sourceTextAlign ?? '左寄せ',
+    offset_x: params.offsetX,
+    offset_y: params.offsetY,
+  })
+}
+
+export async function insertTableRow(
+  tableId: number,
+  atRow: number,
+): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/rows/insert', {
+    table_id: tableId,
+    at_row: atRow,
+  })
+}
+
+export async function deleteTableRow(
+  tableId: number,
+  atRow: number,
+): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/rows/delete', {
+    table_id: tableId,
+    at_row: atRow,
+  })
+}
+
+export async function insertTableCol(
+  tableId: number,
+  atCol: number,
+): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/cols/insert', {
+    table_id: tableId,
+    at_col: atCol,
+  })
+}
+
+export async function deleteTableCol(
+  tableId: number,
+  atCol: number,
+): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/cols/delete', {
+    table_id: tableId,
+    at_col: atCol,
   })
 }

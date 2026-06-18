@@ -1,7 +1,7 @@
 create schema note;
 
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action'))
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action', 'table'))
 ;
 
 -- フォルダ管理
@@ -119,5 +119,42 @@ create table note.parts_revision (
 
 create index ix_note_parts_revision_parts_id
     on note.parts_revision (parts_id, revision_number desc);
+
+-- 表パーツ（table）
+create table note."table" (
+    id         serial primary key,
+    aid        integer not null,
+    row_count  integer not null default 5 check (row_count >= 1),
+    col_count  integer not null default 5 check (col_count >= 1),
+    title      text not null default '',
+
+    constraint fk_note_table_aid
+        foreign key (aid)
+        references accounts(id)
+);
+
+create table note.table_cell (
+    id             serial primary key,
+    table_id       integer not null,
+    x              integer not null check (x >= 1),
+    y              integer not null check (y >= 1),
+    cell_type      text not null check (cell_type in ('string', 'date', 'time', 'datetime', 'number')),
+    input_value    text not null,
+    display_format text not null default '',
+    display_value  text not null default '',
+    text_align     text not null default '左寄せ'
+        check (text_align in ('左寄せ', '中央寄せ', '右寄せ')),
+
+    constraint fk_note_table_cell_table
+        foreign key (table_id)
+        references note."table"(id)
+        on delete cascade,
+
+    constraint uq_note_table_cell_position
+        unique (table_id, x, y)
+);
+
+create index ix_note_table_cell_table_id
+    on note.table_cell (table_id);
 
     

@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-PartsType = Literal["jpeg", "png", "text", "tex", "md", "binary", "url", "action"]
+PartsType = Literal["jpeg", "png", "text", "tex", "md", "binary", "url", "action", "table"]
 
 
 class ResultResponse(BaseModel):
@@ -172,3 +172,81 @@ class PartSwapOrderRequest(BaseModel):
     file_id: int
     parts_id_1: int
     parts_id_2: int
+
+
+# --- Table ---
+class TableGetRequest(BaseModel):
+    table_id: int
+
+
+class TableCellItem(BaseModel):
+    x: int
+    y: int
+    cell_type: str
+    input_value: str
+    display_format: str
+    display_value: str
+    text_align: str
+
+
+class TableGetResponse(BaseModel):
+    table_id: int
+    title: str
+    row_count: int
+    col_count: int
+    cells: list[TableCellItem]
+
+
+class TableMutationResponse(BaseModel):
+    table_id: int
+    title: str
+    row_count: int
+    col_count: int
+    cells: list[TableCellItem]
+
+
+class TableCellUpdateRequest(BaseModel):
+    table_id: int
+    x: int
+    y: int
+    cell_type: str | None = None
+    input_value: str | None = None
+    display_format: str | None = None
+    text_align: str | None = None
+
+
+class TablePasteCellRequest(BaseModel):
+    table_id: int
+    x: int
+    y: int
+    source_input_value: str
+    source_cell_type: str
+    source_display_format: str
+    source_text_align: str = "左寄せ"
+    offset_x: int = 0
+    offset_y: int = 0
+
+
+class TableRowInsertRequest(BaseModel):
+    table_id: int
+    at_row: int
+
+
+class TableRowDeleteRequest(BaseModel):
+    table_id: int
+    at_row: int
+
+
+class TableColInsertRequest(BaseModel):
+    table_id: int
+    at_col: int
+
+
+class TableColDeleteRequest(BaseModel):
+    table_id: int
+    at_col: int
+
+
+class TableTitleUpdateRequest(BaseModel):
+    table_id: int
+    title: str
