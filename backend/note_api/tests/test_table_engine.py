@@ -37,6 +37,44 @@ def _date_cell(x: int, y: int, value: str) -> CellData:
     )
 
 
+def _time_cell(x: int, y: int, value: str) -> CellData:
+    return CellData(
+        x=x,
+        y=y,
+        cell_type="time",
+        input_value=value,
+        display_format="hh:mm",
+    )
+
+
+def test_time_cell_single_digit_hour() -> None:
+    table = _table({(1, 1): _time_cell(1, 1, "1:00")})
+    recalculate_display_values(table)
+    assert table.cells[(1, 1)].display_value == "01:00"
+
+
+def test_time_cell_reference() -> None:
+    table = _table(
+        {
+            (1, 1): _time_cell(1, 1, "1:00"),
+            (2, 1): _time_cell(2, 1, "=Cell(1,1)"),
+        }
+    )
+    recalculate_display_values(table)
+    assert table.cells[(2, 1)].display_value == "01:00"
+
+
+def test_time_cell_reference_type_mismatch() -> None:
+    table = _table(
+        {
+            (1, 1): _number_cell(1, 1, "42"),
+            (2, 1): _time_cell(2, 1, "=Cell(1,1)"),
+        }
+    )
+    recalculate_display_values(table)
+    assert table.cells[(2, 1)].display_value == ERROR_VALUE
+
+
 def test_if_numeric_condition() -> None:
     table = _table(
         {

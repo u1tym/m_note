@@ -85,6 +85,15 @@ def _parse_time(text: str) -> time | None:
             return datetime.strptime(normalized, fmt).time()
         except ValueError:
             continue
+    parts = normalized.split(":")
+    if len(parts) in (2, 3) and all(part.isdigit() for part in parts):
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+            second = int(parts[2]) if len(parts) == 3 else 0
+            return time(hour, minute, second)
+        except ValueError:
+            return None
     return None
 
 
@@ -241,6 +250,35 @@ def _formula_scalar_to_string(value: FormulaScalar) -> str:
     raise ValueError(ERROR_VALUE)
 
 
+def _canonical_time_string(value: time) -> str:
+    if value.second:
+        return value.strftime("%H:%M:%S")
+    return value.strftime("%H:%M")
+
+
+def _formula_scalar_to_time(value: FormulaScalar) -> str:
+    normalized = _normalize_scalar(value)
+    if isinstance(normalized, time):
+        return _canonical_time_string(normalized)
+    raise ValueError(ERROR_VALUE)
+
+
+def _formula_scalar_to_date(value: FormulaScalar) -> str:
+    normalized = _normalize_scalar(value)
+    if isinstance(normalized, date) and not isinstance(normalized, datetime):
+        return normalized.strftime("%Y/%m/%d")
+    raise ValueError(ERROR_VALUE)
+
+
+def _formula_scalar_to_datetime(value: FormulaScalar) -> str:
+    normalized = _normalize_scalar(value)
+    if isinstance(normalized, datetime):
+        if normalized.second:
+            return normalized.strftime("%Y/%m/%d %H:%M:%S")
+        return normalized.strftime("%Y/%m/%d %H:%M")
+    raise ValueError(ERROR_VALUE)
+
+
 def _resolve_cell_raw_for_formula(
     table: TableData,
     stack: set[tuple[int, int]],
@@ -279,6 +317,12 @@ def _evaluate_cell_formula(
         return _formula_scalar_to_number(value)
     if expect == "string":
         return _formula_scalar_to_string(value)
+    if expect == "time":
+        return _formula_scalar_to_time(value)
+    if expect == "date":
+        return _formula_scalar_to_date(value)
+    if expect == "datetime":
+        return _formula_scalar_to_datetime(value)
     raise ValueError(ERROR_ERROR)
 
 
@@ -566,23 +610,32 @@ def _compute_raw_value(
                 else:
                     result = parsed if parsed is not None else 0.0
         elif cell.cell_type == "date":
-            if cell.input_value.strip().startswith("="):
-                result = ERROR_ERROR
+            text = cell.input_value.strip()
+            if text.startswith("="):
+                result = _evaluate_cell_formula(
+                    text[1:], table, stack, cache, expect="date"
+                )
             else:
                 parsed = _parse_date(cell.input_value)
-                result = cell.input_value if parsed else ERROR_VALUE if cell.input_value.strip() else ""
+                result = cell.input_value if parsed else ERROR_VALUE if text else ""
         elif cell.cell_type == "time":
-            if cell.input_value.strip().startswith("="):
-                result = ERROR_ERROR
+            text = cell.input_value.strip()
+            if text.startswith("="):
+                result = _evaluate_cell_formula(
+                    text[1:], table, stack, cache, expect="time"
+                )
             else:
                 parsed = _parse_time(cell.input_value)
-                result = cell.input_value if parsed else ERROR_VALUE if cell.input_value.strip() else ""
+                result = cell.input_value if parsed else ERROR_VALUE if text else ""
         elif cell.cell_type == "datetime":
-            if cell.input_value.strip().startswith("="):
-                result = ERROR_ERROR
+            text = cell.input_value.strip()
+            if text.startswith("="):
+                result = _evaluate_cell_formula(
+                    text[1:], table, stack, cache, expect="datetime"
+                )
             else:
                 parsed = _parse_datetime(cell.input_value)
-                result = cell.input_value if parsed else ERROR_VALUE if cell.input_value.strip() else ""
+                result = cell.input_value if parsed else ERROR_VALUE if text else ""
         else:
             result = ERROR_ERROR
     except ValueError as exc:
