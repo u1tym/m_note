@@ -8,6 +8,8 @@ import {
   alignAt,
   alignClass,
   buildCellMap,
+  buildColWidthMap,
+  colWidthStyle,
   isTableError,
 } from '../utils/tablePart'
 
@@ -22,6 +24,7 @@ const title = ref('')
 const rowCount = ref(5)
 const colCount = ref(5)
 const cellMap = ref<Map<string, TableCellItem>>(new Map())
+const colWidthMap = ref<Map<number, number>>(new Map())
 
 async function load(): Promise<void> {
   loading.value = true
@@ -32,6 +35,7 @@ async function load(): Promise<void> {
     rowCount.value = res.row_count
     colCount.value = res.col_count
     cellMap.value = buildCellMap(res.cells)
+    colWidthMap.value = buildColWidthMap(res.col_widths)
   } catch (e) {
     error.value = formatApiError(e)
   } finally {
@@ -41,6 +45,10 @@ async function load(): Promise<void> {
 
 function displayAt(x: number, y: number): string {
   return cellMap.value.get(`${x},${y}`)?.display_value ?? ''
+}
+
+function widthAt(col: number): number | undefined {
+  return colWidthMap.value.get(col)
 }
 
 onMounted(() => {
@@ -77,8 +85,12 @@ watch(
               class="sheet-cell"
               :class="[
                 alignClass(alignAt(cellMap, col, row)),
-                { 'sheet-cell--error': isTableError(displayAt(col, row)) },
+                {
+                  'sheet-cell--error': isTableError(displayAt(col, row)),
+                  'sheet-col--sized': widthAt(col) !== undefined,
+                },
               ]"
+              :style="colWidthStyle(widthAt(col))"
             >
               {{ displayAt(col, row) }}
             </td>

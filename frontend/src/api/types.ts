@@ -81,11 +81,17 @@ export interface TableCellItem {
   text_align: string
 }
 
+export interface TableColWidthItem {
+  x: number
+  width_px: number
+}
+
 export interface TableGetResponse {
   table_id: number
   title: string
   row_count: number
   col_count: number
+  col_widths: TableColWidthItem[]
   cells: TableCellItem[]
 }
 
@@ -94,6 +100,7 @@ export interface TableMutationResponse {
   title: string
   row_count: number
   col_count: number
+  col_widths: TableColWidthItem[]
   cells: TableCellItem[]
 }
 

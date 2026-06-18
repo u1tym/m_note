@@ -88,6 +88,32 @@ export function isTableError(value: string): boolean {
   return value === '#CYCLE!' || value === '#VALUE!' || value === '#ERROR!' || value === '#REF!'
 }
 
+export const DEFAULT_COL_WIDTH_PX = 64
+export const MIN_COL_WIDTH_PX = 32
+export const MAX_COL_WIDTH_PX = 480
+
+export function buildColWidthMap(
+  colWidths: { x: number; width_px: number }[],
+): Map<number, number> {
+  const map = new Map<number, number>()
+  for (const item of colWidths) {
+    map.set(item.x, item.width_px)
+  }
+  return map
+}
+
+export function colWidthStyle(widthPx: number | undefined): Record<string, string> | undefined {
+  if (widthPx === undefined) {
+    return undefined
+  }
+  const px = `${widthPx}px`
+  return {
+    width: px,
+    minWidth: px,
+    maxWidth: px,
+  }
+}
+
 export function colLabel(col: number): string {
   let n = col
   let label = ''

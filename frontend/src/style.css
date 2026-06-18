@@ -912,6 +912,37 @@ textarea {
   padding: 4px 6px;
 }
 
+.table-col-props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+}
+
+.table-col-width-input {
+  margin-left: 4px;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  padding: 4px 6px;
+  width: 8rem;
+}
+
+.table-col-props button {
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.table-col-props button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .table-saving {
   color: #71717a;
   font-size: 0.75rem;
@@ -933,9 +964,16 @@ textarea {
 .sheet-grid td {
   border: 1px solid #d4d4d8;
   min-width: 64px;
-  max-width: 120px;
+  max-width: 96px;
   padding: 0;
   vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.sheet-grid th.sheet-col--sized,
+.sheet-grid td.sheet-col--sized {
+  min-width: 0;
+  max-width: none;
 }
 
 .sheet-corner,
@@ -965,6 +1003,20 @@ textarea {
   top: 0;
   z-index: 2;
   padding: 4px 6px;
+}
+
+.sheet-col-head {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sheet-col-head--selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.sheet-grid:has(.sheet-col--sized) {
+  table-layout: fixed;
 }
 
 .sheet-cell {

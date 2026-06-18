@@ -9,6 +9,7 @@ import {
   insertTableRow,
   pasteTableCell,
   updateTableCell,
+  updateTableColWidth,
   updateTableTitle,
 } from '../api/noteApi'
 import { formatApiError } from '../api/errors'
@@ -20,10 +21,14 @@ import {
   alignAt,
   alignClass,
   buildCellMap,
+  buildColWidthMap,
   cellKey,
   colLabel,
+  colWidthStyle,
   defaultDisplayFormat,
   isTableError,
+  MAX_COL_WIDTH_PX,
+  MIN_COL_WIDTH_PX,
   type TableCellType,
   type TextAlign,
 } from '../utils/tablePart'
@@ -44,7 +49,12 @@ const savedTitle = ref('')
 const rowCount = ref(5)
 const colCount = ref(5)
 const cellMap = ref<Map<string, TableCellItem>>(new Map())
+const colWidthMap = ref<Map<number, number>>(new Map())
 const selected = ref<{ x: number; y: number } | null>(null)
+const selectedColOnly = ref<number | null>(null)
+const colWidthDraft = ref('')
+const savedColWidth = ref<number | null>(null)
+const colWidthTargetCol = ref<number | null>(null)
 const editInput = ref('')
 const editInputEl = ref<HTMLInputElement | null>(null)
 const clipboard = ref<TableCellItem | null>(null)
@@ -77,12 +87,78 @@ const selectedTextAlign = computed({
   },
 })
 
+const selectedCol = computed(() => selected.value?.x ?? selectedColOnly.value)
+
+function syncColWidthDraft(col: number | null): void {
+  colWidthTargetCol.value = col
+  if (col === null) {
+    colWidthDraft.value = ''
+    savedColWidth.value = null
+    return
+  }
+  const width = colWidthMap.value.get(col)
+  savedColWidth.value = width ?? null
+  colWidthDraft.value = width !== undefined ? String(width) : ''
+}
+
+function parseColWidthDraft(): number | null | 'invalid' {
+  const trimmed = String(colWidthDraft.value).trim()
+  if (trimmed === '') {
+    return null
+  }
+  const nextWidth = Number(trimmed)
+  if (!Number.isInteger(nextWidth) || Number.isNaN(nextWidth)) {
+    return 'invalid'
+  }
+  return nextWidth
+}
+
+async function commitColWidth(): Promise<void> {
+  const col = colWidthTargetCol.value
+  if (col === null || saving.value) {
+    return
+  }
+
+  const parsed = parseColWidthDraft()
+  if (parsed === 'invalid') {
+    error.value = `列幅は ${MIN_COL_WIDTH_PX}〜${MAX_COL_WIDTH_PX} の整数で指定してください`
+    return
+  }
+
+  const saved = colWidthMap.value.get(col) ?? null
+  if (parsed === saved || (parsed === null && saved === null)) {
+    return
+  }
+
+  if (parsed !== null && (parsed < MIN_COL_WIDTH_PX || parsed > MAX_COL_WIDTH_PX)) {
+    error.value = `列幅は ${MIN_COL_WIDTH_PX}〜${MAX_COL_WIDTH_PX} px で指定してください`
+    return
+  }
+
+  saving.value = true
+  error.value = null
+  try {
+    const res = await updateTableColWidth({
+      tableId: props.tableId,
+      x: col,
+      widthPx: parsed,
+    })
+    applyTableState(res, true)
+  } catch (e) {
+    error.value = formatApiError(e)
+  } finally {
+    saving.value = false
+  }
+}
+
 function applyTableState(res: TableMutationResponse, notifyParent = false): void {
   tableTitle.value = res.title
   savedTitle.value = res.title
   rowCount.value = res.row_count
   colCount.value = res.col_count
   cellMap.value = buildCellMap(res.cells)
+  colWidthMap.value = buildColWidthMap(res.col_widths)
+  syncColWidthDraft(selectedCol.value)
   if (notifyParent) {
     emit('updated')
   }
@@ -110,10 +186,25 @@ function inputAt(x: number, y: number): string {
 }
 
 async function selectCell(x: number, y: number): Promise<void> {
+  await commitColWidth()
+  selectedColOnly.value = null
   selected.value = { x, y }
   editInput.value = inputAt(x, y)
+  syncColWidthDraft(x)
   await nextTick()
   editInputEl.value?.focus()
+}
+
+async function selectColumn(col: number): Promise<void> {
+  await commitColWidth()
+  selectedColOnly.value = col
+  selected.value = null
+  editInput.value = ''
+  syncColWidthDraft(col)
+}
+
+function widthAt(col: number): number | undefined {
+  return colWidthMap.value.get(col)
 }
 
 async function commitSelectedCell(): Promise<void> {
@@ -305,7 +396,20 @@ async function onTitleBlur(): Promise<void> {
   }
 }
 
+async function onColWidthBlur(): Promise<void> {
+  await commitColWidth()
+}
+
+async function onResetColWidth(): Promise<void> {
+  if (saving.value || selectedCol.value === null || savedColWidth.value === null) {
+    return
+  }
+  colWidthDraft.value = ''
+  await commitColWidth()
+}
+
 async function mutateTable(action: () => Promise<TableMutationResponse>): Promise<void> {
+  await commitColWidth()
   saving.value = true
   error.value = null
   try {
@@ -384,6 +488,30 @@ void load()
         <button type="button" :disabled="!selected || saving" @click="onDeleteCol">列削除</button>
       </div>
 
+      <div v-if="selectedCol" class="table-col-props">
+        <label>
+          列 {{ colLabel(selectedCol) }} の幅 (px)
+          <input
+            v-model="colWidthDraft"
+            type="number"
+            class="table-col-width-input"
+            :min="MIN_COL_WIDTH_PX"
+            :max="MAX_COL_WIDTH_PX"
+            :disabled="saving"
+            :placeholder="`${MIN_COL_WIDTH_PX}〜${MAX_COL_WIDTH_PX}（空欄で既定）`"
+            @blur="onColWidthBlur"
+            @keydown.enter.prevent="onColWidthBlur"
+          />
+        </label>
+        <button
+          type="button"
+          :disabled="saving || savedColWidth === null"
+          @click="onResetColWidth"
+        >
+          列幅を既定に戻す
+        </button>
+      </div>
+
       <div v-if="selected" class="table-cell-props">
         <label>
           型
@@ -421,7 +549,19 @@ void load()
           <thead>
             <tr>
               <th class="sheet-corner" />
-              <th v-for="col in colCount" :key="`h-${col}`">{{ colLabel(col) }}</th>
+              <th
+                v-for="col in colCount"
+                :key="`h-${col}`"
+                class="sheet-col-head"
+                :class="{
+                  'sheet-col-head--selected': selectedCol === col,
+                  'sheet-col--sized': widthAt(col) !== undefined,
+                }"
+                :style="colWidthStyle(widthAt(col))"
+                @click="void selectColumn(col)"
+              >
+                {{ colLabel(col) }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -436,9 +576,11 @@ void load()
                   {
                     'sheet-cell--selected': selected?.x === col && selected?.y === row,
                     'sheet-cell--error': isTableError(displayAt(col, row)),
+                    'sheet-col--sized': widthAt(col) !== undefined,
                   },
                 ]"
-                @click="selectCell(col, row)"
+                :style="colWidthStyle(widthAt(col))"
+                @click="void selectCell(col, row)"
               >
                 <input
                   v-if="selected?.x === col && selected?.y === row"

@@ -12,6 +12,7 @@ from note_api.app.schemas import (
     TablePasteCellRequest,
     TableRowDeleteRequest,
     TableRowInsertRequest,
+    TableColWidthUpdateRequest,
     TableTitleUpdateRequest,
 )
 from note_api.app.services import table_service
@@ -37,6 +38,18 @@ def update_table_title(
     body: TableTitleUpdateRequest, aid: CurrentAid, db: DbSession
 ) -> TableMutationResponse:
     result = table_service.update_table_title(db, aid, body.table_id, body.title)
+    if isinstance(result, ResultResponse):
+        _raise_if_failed(result)
+    return result
+
+
+@router.post("/col-width/update", response_model=TableMutationResponse)
+def update_table_col_width(
+    body: TableColWidthUpdateRequest, aid: CurrentAid, db: DbSession
+) -> TableMutationResponse:
+    result = table_service.update_table_col_width(
+        db, aid, body.table_id, body.x, body.width_px
+    )
     if isinstance(result, ResultResponse):
         _raise_if_failed(result)
     return result

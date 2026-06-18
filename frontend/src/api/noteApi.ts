@@ -171,6 +171,18 @@ export async function updateTableTitle(
   })
 }
 
+export async function updateTableColWidth(params: {
+  tableId: number
+  x: number
+  widthPx: number | null
+}): Promise<TableMutationResponse> {
+  return postNote<TableMutationResponse>('/table/col-width/update', {
+    table_id: params.tableId,
+    x: params.x,
+    width_px: params.widthPx,
+  })
+}
+
 export async function updateTableCell(params: {
   tableId: number
   x: number

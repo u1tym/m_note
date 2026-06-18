@@ -116,6 +116,7 @@ HTTP **200**。本文は共通形式:
 | E-6 | POST | `/table/cols/insert` | 列挿入 |
 | E-7 | POST | `/table/cols/delete` | 列削除 |
 | E-8 | POST | `/table/title/update` | 表タイトル更新 |
+| E-9 | POST | `/table/col-width/update` | 列幅更新 |
 | — | GET | `/health` | 稼働確認（認証不要） |
 
 ---
@@ -537,6 +538,9 @@ HTTP **200**。本文は共通形式:
   "title": "売上表",
   "row_count": 5,
   "col_count": 5,
+  "col_widths": [
+    { "x": 1, "width_px": 120 }
+  ],
   "cells": [
     {
       "x": 1,
@@ -597,6 +601,21 @@ HTTP **200**。本文は共通形式:
 **Input:** `{ "table_id", "title" }`
 
 **処理:** `note.table.title` を更新する。セル内容は変更しない。
+
+**Output:** E-1 と同形式
+
+---
+
+### E-9. 列幅更新
+
+**POST** `/table/col-width/update`
+
+**Input:** `{ "table_id", "x", "width_px" }`
+
+- `x` … 列位置（1 始まり）
+- `width_px` … 32〜480 の整数。`null` でその列の個別指定を解除（既定幅に戻す）
+
+**処理:** `note.table_col_width` を更新する。列の挿入・削除時は列幅も座標に合わせてずらす。
 
 **Output:** E-1 と同形式
 

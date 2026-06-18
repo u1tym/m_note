@@ -61,6 +61,7 @@ create domain note.parts_type as text
 | `note.parts` | ファイルを構成するパーツ |
 | `note.table` | 表パーツの本体（行数・列数） |
 | `note.table_cell` | 表のセル（スパース格納） |
+| `note.table_col_width` | 表の列幅（スパース格納） |
 
 ---
 
@@ -194,7 +195,24 @@ create domain note.parts_type as text
 
 ---
 
-## 10. `note.parts_revision`（パーツ過去世代）
+## 10. `note.table_col_width`（列幅）
+
+列ごとの表示幅（px）をスパース格納する。行がない列は既定幅（UI 上おおよそ 64〜96 px）を使う。
+
+| カラム | 型 | NULL | 説明 |
+|--------|-----|------|------|
+| `id` | serial | NOT NULL | 主キー |
+| `table_id` | integer | NOT NULL | → `note.table(id)` ON DELETE CASCADE |
+| `x` | integer | NOT NULL | 列位置（1 始まり） |
+| `width_px` | integer | NOT NULL | 表示幅（32〜480） |
+
+| 名前 | 種別 | 定義 |
+|------|------|------|
+| `uq_note_table_col_width_position` | UNIQUE | `(table_id, x)` |
+
+---
+
+## 11. `note.parts_revision`（パーツ過去世代）
 
 `jpeg` / `png` / `binary` パーツを **置き換え（update）** する直前に、変更前の内容をスナップショットとして保存する。保持件数は環境変数 `PARTS_MAX_REVISIONS`（既定 `3`）。超過分は古い世代から削除する。
 
@@ -232,6 +250,7 @@ accounts (public)
     │
     ├──< note.table (aid)
     │         └──< note.table_cell (table_id)
+    │         └──< note.table_col_width (table_id)
     │
     └──< note.parts (aid) ── file ──> note.file
               │ data → note.table.id (ptype=table)

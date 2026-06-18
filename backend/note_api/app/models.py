@@ -117,3 +117,18 @@ class TableCell(Base):
     display_format: Mapped[str] = mapped_column(Text, nullable=False, default="")
     display_value: Mapped[str] = mapped_column(Text, nullable=False, default="")
     text_align: Mapped[str] = mapped_column(Text, nullable=False, default="左寄せ")
+
+
+class TableColWidth(Base):
+    __tablename__ = "table_col_width"
+    __table_args__ = (
+        UniqueConstraint("table_id", "x", name="uq_note_table_col_width_position"),
+        {"schema": "note"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    table_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("note.table.id", ondelete="CASCADE"), nullable=False
+    )
+    x: Mapped[int] = mapped_column(Integer, nullable=False)
+    width_px: Mapped[int] = mapped_column(Integer, nullable=False)

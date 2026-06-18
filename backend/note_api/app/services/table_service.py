@@ -1,10 +1,11 @@
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from note_api.app.models import NoteTable, Part, TableCell
+from note_api.app.models import NoteTable, Part, TableCell, TableColWidth
 from note_api.app.schemas import (
     ResultResponse,
     TableCellItem,
+    TableColWidthItem,
     TableGetResponse,
     TableMutationResponse,
 )
@@ -31,6 +32,10 @@ def _fail(reason: str) -> ResultResponse:
 
 def _ok() -> ResultResponse:
     return ResultResponse(result=True, reason=None)
+
+
+MIN_COL_WIDTH_PX = 32
+MAX_COL_WIDTH_PX = 480
 
 
 def create_table_for_part(db: Session, aid: int) -> NoteTable:
@@ -74,6 +79,48 @@ def _load_table_data(db: Session, table: NoteTable) -> TableData:
     return TableData(row_count=table.row_count, col_count=table.col_count, cells=cells)
 
 
+def _load_col_widths(db: Session, table_id: int) -> dict[int, int]:
+    rows = db.scalars(
+        select(TableColWidth).where(TableColWidth.table_id == table_id)
+    ).all()
+    return {row.x: row.width_px for row in rows}
+
+
+def _col_widths_to_items(widths: dict[int, int]) -> list[TableColWidthItem]:
+    return [
+        TableColWidthItem(x=x, width_px=width_px)
+        for x, width_px in sorted(widths.items())
+    ]
+
+
+def _persist_col_widths(db: Session, table_id: int, widths: dict[int, int]) -> None:
+    db.execute(delete(TableColWidth).where(TableColWidth.table_id == table_id))
+    for x, width_px in sorted(widths.items()):
+        db.add(TableColWidth(table_id=table_id, x=x, width_px=width_px))
+
+
+def _shift_col_widths_for_insert(widths: dict[int, int], at_col: int) -> dict[int, int]:
+    shifted: dict[int, int] = {}
+    for x, width_px in widths.items():
+        new_x = x + 1 if x >= at_col else x
+        shifted[new_x] = width_px
+    return shifted
+
+
+def _adjust_col_widths_for_delete(widths: dict[int, int], at_col: int) -> dict[int, int]:
+    shifted: dict[int, int] = {}
+    for x, width_px in widths.items():
+        if x == at_col:
+            continue
+        new_x = x - 1 if x > at_col else x
+        shifted[new_x] = width_px
+    return shifted
+
+
+def _validate_col_width(width_px: int) -> bool:
+    return MIN_COL_WIDTH_PX <= width_px <= MAX_COL_WIDTH_PX
+
+
 def _cells_to_items(cells: dict[tuple[int, int], CellData]) -> list[TableCellItem]:
     return [
         TableCellItem(
@@ -106,12 +153,15 @@ def _persist_table_data(db: Session, table_id: int, table_data: TableData) -> No
         )
 
 
-def _build_response(table: NoteTable, table_data: TableData) -> TableMutationResponse:
+def _build_response(
+    table: NoteTable, table_data: TableData, col_widths: dict[int, int]
+) -> TableMutationResponse:
     return TableMutationResponse(
         table_id=table.id,
         title=table.title,
         row_count=table_data.row_count,
         col_count=table_data.col_count,
+        col_widths=_col_widths_to_items(col_widths),
         cells=_cells_to_items(table_data.cells),
     )
 
@@ -123,11 +173,13 @@ def get_table(
     if table is None:
         return _fail("指定された表が見つかりません")
     table_data = _load_table_data(db, table)
+    col_widths = _load_col_widths(db, table.id)
     return TableGetResponse(
         table_id=table.id,
         title=table.title,
         row_count=table_data.row_count,
         col_count=table_data.col_count,
+        col_widths=_col_widths_to_items(col_widths),
         cells=_cells_to_items(table_data.cells),
     )
 
@@ -141,8 +193,32 @@ def update_table_title(
 
     table.title = title
     table_data = _load_table_data(db, table)
+    col_widths = _load_col_widths(db, table.id)
     db.commit()
-    return _build_response(table, table_data)
+    return _build_response(table, table_data, col_widths)
+
+
+def update_table_col_width(
+    db: Session, aid: int, table_id: int, x: int, width_px: int | None
+) -> TableMutationResponse | ResultResponse:
+    table = _get_table_or_none(db, aid, table_id)
+    if table is None:
+        return _fail("指定された表が見つかりません")
+    if x < 1 or x > table.col_count:
+        return _fail("列位置が表の範囲外です")
+
+    col_widths = _load_col_widths(db, table.id)
+    if width_px is None:
+        col_widths.pop(x, None)
+    else:
+        if not _validate_col_width(width_px):
+            return _fail(f"列幅は {MIN_COL_WIDTH_PX}〜{MAX_COL_WIDTH_PX} px で指定してください")
+        col_widths[x] = width_px
+
+    _persist_col_widths(db, table.id, col_widths)
+    table_data = _load_table_data(db, table)
+    db.commit()
+    return _build_response(table, table_data, col_widths)
 
 
 def update_table_cell(
@@ -201,8 +277,9 @@ def update_table_cell(
 
     recalculate_display_values(table_data)
     _persist_table_data(db, table.id, table_data)
+    col_widths = _load_col_widths(db, table.id)
     db.commit()
-    return _build_response(table, table_data)
+    return _build_response(table, table_data, col_widths)
 
 
 def insert_table_row(
@@ -221,8 +298,9 @@ def insert_table_row(
     table_data.row_count = table.row_count
     recalculate_display_values(table_data)
     _persist_table_data(db, table.id, table_data)
+    col_widths = _load_col_widths(db, table.id)
     db.commit()
-    return _build_response(table, table_data)
+    return _build_response(table, table_data, col_widths)
 
 
 def delete_table_row(
@@ -243,8 +321,9 @@ def delete_table_row(
     table_data.row_count = table.row_count
     recalculate_display_values(table_data)
     _persist_table_data(db, table.id, table_data)
+    col_widths = _load_col_widths(db, table.id)
     db.commit()
-    return _build_response(table, table_data)
+    return _build_response(table, table_data, col_widths)
 
 
 def insert_table_col(
@@ -261,10 +340,12 @@ def insert_table_col(
     shift_cells_for_col_insert(table_data.cells, at_col)
     table_data.cells = rebuild_cell_map(table_data.cells)
     table_data.col_count = table.col_count
+    col_widths = _shift_col_widths_for_insert(_load_col_widths(db, table.id), at_col)
+    _persist_col_widths(db, table.id, col_widths)
     recalculate_display_values(table_data)
     _persist_table_data(db, table.id, table_data)
     db.commit()
-    return _build_response(table, table_data)
+    return _build_response(table, table_data, col_widths)
 
 
 def delete_table_col(
@@ -283,10 +364,13 @@ def delete_table_col(
     adjust_formulas_for_col_delete(table_data.cells, at_col)
     table_data.cells = rebuild_cell_map(table_data.cells)
     table_data.col_count = table.col_count
+    col_widths = _adjust_col_widths_for_delete(_load_col_widths(db, table.id), at_col)
+    _persist_col_widths(db, table.id, col_widths)
     recalculate_display_values(table_data)
     _persist_table_data(db, table.id, table_data)
+    col_widths = _load_col_widths(db, table.id)
     db.commit()
-    return _build_response(table, table_data)
+    return _build_response(table, table_data, col_widths)
 
 
 def paste_table_cell(

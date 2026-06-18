@@ -189,11 +189,17 @@ class TableCellItem(BaseModel):
     text_align: str
 
 
+class TableColWidthItem(BaseModel):
+    x: int
+    width_px: int
+
+
 class TableGetResponse(BaseModel):
     table_id: int
     title: str
     row_count: int
     col_count: int
+    col_widths: list[TableColWidthItem]
     cells: list[TableCellItem]
 
 
@@ -202,6 +208,7 @@ class TableMutationResponse(BaseModel):
     title: str
     row_count: int
     col_count: int
+    col_widths: list[TableColWidthItem]
     cells: list[TableCellItem]
 
 
@@ -250,3 +257,9 @@ class TableColDeleteRequest(BaseModel):
 class TableTitleUpdateRequest(BaseModel):
     table_id: int
     title: str
+
+
+class TableColWidthUpdateRequest(BaseModel):
+    table_id: int
+    x: int
+    width_px: int | None = None
