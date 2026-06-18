@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
-import { noteOrigin } from '../config'
+import { noteOrigin, skipSessionExtend } from '../config'
 import { isUnauthorizedError, redirectToLogin } from './auth'
 import { extendSession } from './session'
 
@@ -10,7 +10,10 @@ const RETRY_DELAY_MS = 600
 const RETRYABLE_ERROR_CODES = new Set(['ECONNREFUSED', 'ETIMEDOUT', 'ERR_NETWORK'])
 const RETRYABLE_HTTP_STATUS = new Set([502, 503, 504])
 
-type RetryableConfig = InternalAxiosRequestConfig & { _retryCount?: number }
+type RetryableConfig = InternalAxiosRequestConfig & {
+  _retryCount?: number
+  _authRetried?: boolean
+}
 
 let sessionExtendPromise: Promise<void> | null = null
 
@@ -73,7 +76,17 @@ noteClient.interceptors.response.use(
     }
 
     if (isUnauthorizedError(error)) {
-      redirectToLogin()
+      if (skipSessionExtend) {
+        redirectToLogin()
+      } else if (config && !config._authRetried) {
+        config._authRetried = true
+        try {
+          await extendSession()
+          return noteClient.request(config)
+        } catch (authError) {
+          return Promise.reject(authError)
+        }
+      }
     }
     return Promise.reject(error)
   },

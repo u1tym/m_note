@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+import { SessionAuthCancelledError } from './sessionAuth'
+
 /** API 接続エラーをユーザー向けメッセージに変換 */
 export function formatApiError(error: unknown): string {
+  if (error instanceof SessionAuthCancelledError) {
+    return ''
+  }
   if (axios.isAxiosError(error)) {
     if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
       return 'Note API (http://127.0.0.1:8000) に接続できません。uvicorn が起動しているか確認してください。'
