@@ -62,6 +62,7 @@ const savedColWidth = ref<number | null>(null)
 const colWidthTargetCol = ref<number | null>(null)
 const editInput = ref('')
 const editInputEl = ref<HTMLInputElement | null>(null)
+const formulaBarEl = ref<HTMLInputElement | null>(null)
 const tableScrollEl = ref<HTMLDivElement | null>(null)
 const clipboard = ref<TableCellItem | null>(null)
 
@@ -244,9 +245,23 @@ async function focusEditInput(selectAll: boolean): Promise<void> {
   }
 }
 
+function getActiveEditElement(): HTMLInputElement | null {
+  const active = document.activeElement
+  if (active instanceof HTMLInputElement) {
+    if (active === formulaBarEl.value || active === editInputEl.value) {
+      return active
+    }
+  }
+  return editInputEl.value ?? formulaBarEl.value
+}
+
+function isEditFocusMovingInternally(related: EventTarget | null): boolean {
+  return related === formulaBarEl.value || related === editInputEl.value
+}
+
 function insertCellRef(x: number, y: number): void {
   const ref = `Cell(${x},${y})`
-  const el = editInputEl.value
+  const el = getActiveEditElement()
   if (!el) {
     editInput.value += ref
     return
@@ -261,7 +276,26 @@ function insertCellRef(x: number, y: number): void {
   })
 }
 
-async function startEditing(initialValue?: string): Promise<void> {
+async function focusFormulaBar(selectAll: boolean): Promise<void> {
+  await nextTick()
+  await nextTick()
+  const el = formulaBarEl.value
+  if (!el) {
+    return
+  }
+  el.focus()
+  if (selectAll) {
+    el.select()
+  } else {
+    const len = el.value.length
+    el.setSelectionRange(len, len)
+  }
+}
+
+async function startEditing(
+  initialValue?: string,
+  focusTarget: 'cell' | 'bar' = 'cell',
+): Promise<void> {
   if (!primaryCell.value) {
     return
   }
@@ -271,7 +305,11 @@ async function startEditing(initialValue?: string): Promise<void> {
   } else {
     editInput.value = inputAt(primaryCell.value.x, primaryCell.value.y)
   }
-  await focusEditInput(initialValue === undefined)
+  if (focusTarget === 'bar') {
+    await focusFormulaBar(initialValue === undefined)
+  } else {
+    await focusEditInput(initialValue === undefined)
+  }
 }
 
 function cancelEditing(): void {
@@ -425,9 +463,11 @@ async function commitAndMoveDown(): Promise<void> {
   primaryCell.value = { x, y: nextY }
   anchorCell.value = { x, y: nextY }
   selectedCells.value = new Set([cellKey(x, nextY)])
-  isEditing.value = true
+  isEditing.value = false
   editInput.value = inputAt(x, nextY)
-  await focusEditInput(true)
+  syncColWidthDraft(x)
+  await nextTick()
+  tableScrollEl.value?.focus()
 }
 
 async function moveSelection(dx: number, dy: number, extend: boolean): Promise<void> {
@@ -496,7 +536,31 @@ async function deleteSelectedCells(): Promise<void> {
   }
 }
 
-async function onCellBlur(): Promise<void> {
+async function onFormulaBarMouseDown(event: MouseEvent): Promise<void> {
+  if (!primaryCell.value || saving.value) {
+    return
+  }
+  if (!isEditing.value) {
+    event.preventDefault()
+    await startEditing(undefined, 'bar')
+    return
+  }
+  // セル入力欄から数式バーへ移るとき blur で確定しない
+  event.preventDefault()
+  formulaBarEl.value?.focus()
+}
+
+async function onEditInputBlur(event: FocusEvent): Promise<void> {
+  if (isEditFocusMovingInternally(event.relatedTarget)) {
+    return
+  }
+  await commitCurrentCellIfEditing()
+}
+
+async function onFormulaBarBlur(event: FocusEvent): Promise<void> {
+  if (isEditFocusMovingInternally(event.relatedTarget)) {
+    return
+  }
   await commitCurrentCellIfEditing()
 }
 
@@ -871,6 +935,30 @@ void load()
       </div>
 
       <div
+        v-if="primaryCell || selectedCount > 0"
+        class="table-formula-bar"
+      >
+        <span class="table-formula-bar__label">
+          <template v-if="primaryCell">
+            {{ colLabel(primaryCell.x) }}{{ primaryCell.y }}
+          </template>
+          <template v-else>—</template>
+        </span>
+        <input
+          ref="formulaBarEl"
+          v-model="editInput"
+          type="text"
+          class="table-formula-bar__input"
+          :readonly="!isEditing"
+          :disabled="!primaryCell || saving"
+          placeholder="セルを編集すると入力内容が表示されます"
+          @mousedown="onFormulaBarMouseDown"
+          @blur="onFormulaBarBlur"
+          @keydown="onCellInputKeydown"
+        />
+      </div>
+
+      <div
         ref="tableScrollEl"
         class="table-scroll"
         tabindex="0"
@@ -923,7 +1011,7 @@ void load()
                   v-model="editInput"
                   class="sheet-cell-input"
                   :class="alignClass(alignAt(cellMap, col, row))"
-                  @blur="onCellBlur"
+                  @blur="onEditInputBlur"
                   @keydown="onCellInputKeydown"
                 />
                 <span v-else class="sheet-cell-display">{{ displayAt(col, row) }}</span>
