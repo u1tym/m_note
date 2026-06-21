@@ -182,3 +182,41 @@ def test_arithmetic_with_if() -> None:
     table = _table({(1, 1): _number_cell(1, 1, "=If(2>1, 3, 0)+4")})
     recalculate_display_values(table)
     assert table.cells[(1, 1)].display_value == "7"
+
+
+def test_sum_range() -> None:
+    table = _table(
+        {
+            (1, 1): _number_cell(1, 1, "10"),
+            (2, 1): _number_cell(2, 1, "20"),
+            (1, 2): _number_cell(1, 2, "5"),
+            (2, 2): _number_cell(2, 2, "15"),
+            (3, 1): _number_cell(3, 1, "=Sum(Cell(1,1):Cell(2,2))"),
+        }
+    )
+    recalculate_display_values(table)
+    assert table.cells[(3, 1)].display_value == "50"
+
+
+def test_sum_range_reversed_corners() -> None:
+    table = _table(
+        {
+            (1, 1): _number_cell(1, 1, "3"),
+            (2, 1): _number_cell(2, 1, "7"),
+            (3, 1): _number_cell(3, 1, "=Sum(Cell(2,1):Cell(1,1))"),
+        }
+    )
+    recalculate_display_values(table)
+    assert table.cells[(3, 1)].display_value == "10"
+
+
+def test_sum_non_numeric_is_error() -> None:
+    table = _table(
+        {
+            (1, 1): _string_cell(1, 1, "abc"),
+            (2, 1): _number_cell(2, 1, "5"),
+            (3, 1): _number_cell(3, 1, "=Sum(Cell(1,1):Cell(2,1))"),
+        }
+    )
+    recalculate_display_values(table)
+    assert table.cells[(3, 1)].display_value == ERROR_VALUE

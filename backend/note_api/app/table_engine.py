@@ -411,7 +411,7 @@ class _FormulaParser:
             self.pos += 1
         raise ValueError("unterminated string")
 
-    def _parse_cell_ref(self) -> FormulaScalar:
+    def _parse_cell_ref_coords(self) -> tuple[int, int]:
         self._skip_ws()
         if not self.text[self.pos :].startswith("Cell("):
             raise ValueError("expected Cell(")
@@ -421,7 +421,29 @@ class _FormulaParser:
         x = int(match.group(2))
         y = int(match.group(4))
         self.pos = match.end()
+        return x, y
+
+    def _parse_cell_ref(self) -> FormulaScalar:
+        x, y = self._parse_cell_ref_coords()
         return self.resolve_cell(x, y)
+
+    def _parse_sum_call(self) -> float:
+        self._consume_identifier("Sum")
+        self._consume("(")
+        x1, y1 = self._parse_cell_ref_coords()
+        self._skip_ws()
+        if self._peek() != ":":
+            raise ValueError("expected : in Sum()")
+        self.pos += 1
+        x2, y2 = self._parse_cell_ref_coords()
+        self._consume(")")
+        x_min, x_max = min(x1, x2), max(x1, x2)
+        y_min, y_max = min(y1, y2), max(y1, y2)
+        total = 0.0
+        for x in range(x_min, x_max + 1):
+            for y in range(y_min, y_max + 1):
+                total += _to_arithmetic_number(self.resolve_cell(x, y))
+        return total
 
     def _parse_if_call(self) -> FormulaScalar:
         self._consume_identifier("If")
@@ -542,6 +564,8 @@ class _FormulaParser:
         ident = self._peek_identifier()
         if ident is not None and ident.lower() == "if":
             return self._parse_if_call()
+        if ident is not None and ident.lower() == "sum":
+            return self._parse_sum_call()
         return self._parse_number_literal()
 
     def _parse_term(self) -> FormulaScalar:
