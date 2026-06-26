@@ -112,12 +112,14 @@ export async function createPart(
   type: PartsType,
   data: string,
   filename = '',
+  title = '',
 ): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/create', {
     file_id: fileId,
     type,
     data,
     filename,
+    title,
   })
 }
 
@@ -126,12 +128,14 @@ export async function updatePart(
   type: PartsType,
   data: string,
   filename?: string,
+  title?: string,
 ): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/update', {
     parts_id: partsId,
     type,
     data,
     ...(filename !== undefined ? { filename } : {}),
+    ...(title !== undefined ? { title } : {}),
   })
 }
 

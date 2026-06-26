@@ -58,6 +58,7 @@ class PartInfo(BaseModel):
     ptype: str
     data: str
     filename: str
+    title: str
     is_del: bool
     revisions: list["PartRevisionSummary"] = []
 
@@ -151,6 +152,7 @@ class PartCreateRequest(BaseModel):
     ptype: PartsType = Field(alias="type")
     data: str
     filename: str = ""
+    title: str = ""
 
     model_config = {"populate_by_name": True}
 
@@ -164,6 +166,7 @@ class PartUpdateRequest(BaseModel):
     ptype: PartsType = Field(alias="type")
     data: str
     filename: str | None = None
+    title: str | None = None
 
     model_config = {"populate_by_name": True}
 

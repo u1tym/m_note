@@ -50,6 +50,7 @@ export interface PartInfo {
   ptype: PartsType
   data: string
   filename: string
+  title: string
   is_del: boolean
   revisions: PartRevisionSummary[]
 }

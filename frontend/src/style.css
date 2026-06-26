@@ -388,6 +388,17 @@ textarea {
   line-height: 1.4;
 }
 
+.action-leg-note {
+  margin: 0 0 4px 10px;
+  padding: 4px 0 4px 8px;
+  border-left: 2px dashed #e4e4e7;
+  font-size: 0.75rem;
+  color: #71717a;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .action-plan-error {
   margin: 4px 0 0;
   color: #dc2626;
@@ -455,6 +466,20 @@ textarea {
 .action-leg-field {
   padding-left: 8px;
   border-left: 2px dashed #d4d4d8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-leg-note-input {
+  padding: 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 4.5rem;
 }
 
 .action-add-point {

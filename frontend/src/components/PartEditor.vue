@@ -32,8 +32,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: [type: PartsType, data: string, filename: string]
-  update: [part: PartInfo, type: PartsType, data: string, filename: string]
+  add: [type: PartsType, data: string, filename: string, title: string]
+  update: [part: PartInfo, type: PartsType, data: string, filename: string, title: string]
   delete: [partsId: number]
   reorder: [partsId1: number, partsId2: number]
 }>()
@@ -41,6 +41,7 @@ const emit = defineEmits<{
 const newType = ref<PartsType>('text')
 const newData = ref('')
 const newFilename = ref('')
+const newTitle = ref('')
 const replacingPartId = ref<number | null>(null)
 const downloadingRevisionId = ref<number | null>(null)
 const localError = ref<string | null>(null)
@@ -49,6 +50,7 @@ const activePartId = ref<number | null>(null)
 const sheetMode = ref<'actions' | 'edit'>('actions')
 const editData = ref('')
 const editFilename = ref('')
+const editTitle = ref('')
 const editActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const newActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const saving = ref(false)
@@ -74,6 +76,10 @@ const activePart = computed(() =>
 
 function isBinaryType(type: PartsType): boolean {
   return type === 'jpeg' || type === 'png' || type === 'binary'
+}
+
+function isImageType(type: PartsType): boolean {
+  return type === 'jpeg' || type === 'png'
 }
 
 function isActionType(type: PartsType): boolean {
@@ -132,6 +138,7 @@ function closeSheet(): void {
   sheetMode.value = 'actions'
   editData.value = ''
   editFilename.value = ''
+  editTitle.value = ''
   editActionPlan.value = emptyActionPlan()
 }
 
@@ -146,6 +153,7 @@ function startEdit(): void {
     editData.value = part.data
   }
   editFilename.value = part.filename
+  editTitle.value = part.title
   sheetMode.value = 'edit'
   localError.value = null
 }
@@ -155,6 +163,7 @@ watch(activePartId, (id) => {
     sheetMode.value = 'actions'
     editData.value = ''
     editFilename.value = ''
+    editTitle.value = ''
     editActionPlan.value = emptyActionPlan()
   }
 })
@@ -181,6 +190,7 @@ function resetAddForm(): void {
   newType.value = 'text'
   newData.value = ''
   newFilename.value = ''
+  newTitle.value = ''
   newActionPlan.value = emptyActionPlan()
 }
 
@@ -218,12 +228,12 @@ async function onAdd(): Promise<void> {
       localError.value = err
       return
     }
-    emit('add', 'action', serializeActionPlan(newActionPlan.value), '')
+    emit('add', 'action', serializeActionPlan(newActionPlan.value), '', '')
     finishAdd()
     return
   }
   if (isTableType(newType.value)) {
-    emit('add', 'table', '', '')
+    emit('add', 'table', '', '', '')
     finishAdd()
     return
   }
@@ -237,7 +247,13 @@ async function onAdd(): Promise<void> {
     localError.value = 'ファイル名が必要です'
     return
   }
-  emit('add', newType.value, newData.value, newFilename.value.trim())
+  emit(
+    'add',
+    newType.value,
+    newData.value,
+    newFilename.value.trim(),
+    isImageType(newType.value) ? newTitle.value.trim() : '',
+  )
   finishAdd()
 }
 
@@ -307,7 +323,7 @@ async function onSaveEdit(): Promise<void> {
     }
     saving.value = true
     try {
-      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '')
+      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '', '')
       closeSheet()
     } finally {
       saving.value = false
@@ -324,7 +340,14 @@ async function onSaveEdit(): Promise<void> {
   }
   saving.value = true
   try {
-    emit('update', part, part.ptype, editData.value, editFilename.value.trim())
+    emit(
+      'update',
+      part,
+      part.ptype,
+      editData.value,
+      editFilename.value.trim(),
+      isImageType(part.ptype) ? editTitle.value.trim() : '',
+    )
     closeSheet()
   } finally {
     saving.value = false
@@ -380,10 +403,11 @@ function onOverlayClick(): void {
 
         <button type="button" class="part-view" @click="openPart(part)">
             <template v-if="part.ptype === 'jpeg' || part.ptype === 'png'">
+              <p v-if="part.title" class="table-title">{{ part.title }}</p>
               <img
                 class="part-image"
                 :src="`data:image/${part.ptype};base64,${part.data}`"
-                :alt="part.filename || `part-${part.id}`"
+                :alt="part.title || part.filename || `part-${part.id}`"
               />
             </template>
             <template v-else-if="part.ptype === 'binary'">
@@ -429,11 +453,12 @@ function onOverlayClick(): void {
         <template v-if="sheetMode === 'actions'">
           <div class="part-sheet-preview">
             <template v-if="activePart.ptype === 'jpeg' || activePart.ptype === 'png'">
+              <p v-if="activePart.title" class="table-title">{{ activePart.title }}</p>
               <p v-if="activePart.filename" class="binary-filename">{{ activePart.filename }}</p>
               <img
                 class="part-image"
                 :src="`data:image/${activePart.ptype};base64,${activePart.data}`"
-                :alt="activePart.filename || `part-${activePart.id}`"
+                :alt="activePart.title || activePart.filename || `part-${activePart.id}`"
               />
             </template>
             <template v-else-if="activePart.ptype === 'binary'">
@@ -519,7 +544,27 @@ function onOverlayClick(): void {
                 @updated="onTableUpdated(tableIdFromPart(activePart.data))"
               />
             </template>
-            <template v-else-if="isBinaryType(activePart.ptype)">
+            <template v-else-if="isImageType(activePart.ptype)">
+              <label class="table-title-field">
+                タイトル
+                <input
+                  v-model="editTitle"
+                  type="text"
+                  class="table-title-input"
+                  placeholder="任意"
+                />
+              </label>
+              <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
+              <p v-if="editData" class="binary-hint">約 {{ formatByteSize(editData.length) }}</p>
+              <button
+                type="button"
+                :disabled="replacingPartId === activePart.id"
+                @click="onReplaceBinaryInEdit"
+              >
+                {{ replacingPartId === activePart.id ? '読み込み中…' : 'ファイルを選択' }}
+              </button>
+            </template>
+            <template v-else-if="activePart.ptype === 'binary'">
               <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
               <p v-if="editData" class="binary-hint">約 {{ formatByteSize(editData.length) }}</p>
               <button
@@ -581,6 +626,15 @@ function onOverlayClick(): void {
           @update:model-value="onNewActionPlanUpdate"
         />
         <p v-else-if="isTableType(newType)" class="table-add-hint">5×5 の空の表を作成します。</p>
+        <label v-else-if="isImageType(newType)" class="table-title-field">
+          タイトル
+          <input
+            v-model="newTitle"
+            type="text"
+            class="table-title-input"
+            placeholder="任意"
+          />
+        </label>
         <textarea
           v-else-if="!isBinaryType(newType)"
           v-model="newData"

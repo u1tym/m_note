@@ -31,6 +31,12 @@ const plan = computed(() => parseActionPlan(props.data))
       >
         {{ plan.legs[index].memo }}
       </p>
+      <p
+        v-if="index < plan.legs.length && plan.legs[index].note"
+        class="action-leg-note"
+      >
+        {{ plan.legs[index].note }}
+      </p>
     </template>
   </div>
   <p v-else class="action-plan-error">行動予定の形式が不正です</p>

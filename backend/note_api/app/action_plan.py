@@ -50,7 +50,11 @@ def _plan_has_content(points: list[dict[str, str]], legs_raw: list[Any]) -> bool
     if any(not _point_is_empty(p) for p in points):
         return True
     for leg in legs_raw:
-        if isinstance(leg, dict) and not _is_blank(_trim_end(leg.get("memo"))):
+        if not isinstance(leg, dict):
+            continue
+        if not _is_blank(_trim_end(leg.get("memo"))):
+            return True
+        if not _is_blank(_trim_end(leg.get("note"))):
             return True
     return False
 
@@ -120,7 +124,10 @@ def validate_action_plan_data(data: str) -> ResultResponse | None:
         if not isinstance(leg, dict):
             return _fail(f"経由{i + 1} の形式が不正です")
         memo = _trim_end(leg.get("memo"))
-        if i >= len(points) - 1 and not _is_blank(memo):
+        note = _trim_end(leg.get("note"))
+        if i >= len(points) - 1 and (not _is_blank(memo) or not _is_blank(note)):
             return _fail("最後の地点より後の経由メモは指定できません")
+        if leg.get("note") is not None and not isinstance(leg.get("note"), str):
+            return _fail(f"経由{i + 1} の補足メモは文字列である必要があります")
 
     return None

@@ -190,6 +190,7 @@ HTTP **200**。本文は共通形式:
       "ptype": "binary",
       "data": "...",
       "filename": "memo.pdf",
+      "title": "",
       "is_del": false,
       "revisions": [
         {
@@ -208,6 +209,7 @@ HTTP **200**。本文は共通形式:
 | フィールド | 説明 |
 |------------|------|
 | `parts[].filename` | 現在世代のファイル名（`jpeg` / `png` / `binary` で使用） |
+| `parts[].title` | 表示用タイトル（`jpeg` / `png` で使用。任意。空文字可） |
 | `parts[].revisions` | 過去世代の一覧（メタデータのみ。`data` は含まない）。`jpeg` / `png` / `binary` のみ |
 
 **処理:** 自アカウントのファイル・所属フォルダ・パーツを取得。削除済みファイルも取得可。パーツは `include_deleted` に従いフィルタし、`dorder` 昇順で返す。各パーツに `is_del`（`is_deleted` の反映）を含む。
@@ -359,15 +361,16 @@ HTTP **200**。本文は共通形式:
 
 **POST** `/parts/create`
 
-**Input:** `{ "file_id": n, "type": "md", "data": "...", "filename": "optional" }`
+**Input:** `{ "file_id": n, "type": "md", "data": "...", "filename": "optional", "title": "optional" }`
 
 - `type`（API）→ DB の `ptype`。許容値: `jpeg` / `png` / `text` / `tex` / `md` / `binary` / `url` / `action` / `table`
 - `jpeg` / `png` / `binary` のとき `data` は Base64 文字列
 - `jpeg` / `png` / `binary` のとき **`filename` 必須**（空不可）
+- `jpeg` / `png` のとき **`title` 任意**（表示用。省略時は空文字）
 - `action`（行動予定）のとき `data` は **JSON 文字列**（構造は [D-4a](#d-4a-行動予定-action-の-data-形式)）
 - `table`（表）のとき **`data` は空文字**。サーバーが `note.table` を作成し、`parts.data` にその ID を格納する（初期 5×5）
 
-**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename` を保存。`action` のときは data の JSON 構造を検証する。`table` のときは [D-4b](#d-4b-表-table) を参照。
+**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename`・`title` を保存。`jpeg` / `png` 以外では `title` は空文字に正規化する。`action` のときは data の JSON 構造を検証する。`table` のときは [D-4b](#d-4b-表-table) を参照。
 
 ---
 
@@ -395,12 +398,13 @@ HTTP **200**。本文は共通形式:
 
 **POST** `/parts/update`
 
-**Input:** `{ "parts_id": n, "type": "t2", "data": "d2", "filename": "name.bin" }`
+**Input:** `{ "parts_id": n, "type": "t2", "data": "d2", "filename": "name.bin", "title": "optional" }`
 
 - `filename` 省略時は既存値を維持
+- `title` 省略時は既存値を維持（`jpeg` / `png` のみ有効。他種別では空文字に正規化）
 - `jpeg` / `png` / `binary` では **`filename` 必須**（省略時は既存値が空ならエラー）
 
-**処理:** `ptype`・`data`・`filename` を更新。`jpeg` / `png` / `binary` で内容が変わる場合、更新前の状態を `note.parts_revision` に保存し、`PARTS_MAX_REVISIONS` を超える古い世代を削除する。`action` のときは data の JSON 構造を検証する。
+**処理:** `ptype`・`data`・`filename`・`title` を更新。`jpeg` / `png` / `binary` で **画像データ・種別・filename** が変わる場合、更新前の状態を `note.parts_revision` に保存し、`PARTS_MAX_REVISIONS` を超える古い世代を削除する（`title` の変更のみでは世代は増えない）。`action` のときは data の JSON 構造を検証する。
 
 ---
 
@@ -416,7 +420,7 @@ HTTP **200**。本文は共通形式:
     { "place": "渋谷", "time": "14:00" }
   ],
   "legs": [
-    { "memo": "山手線" },
+    { "memo": "山手線", "note": "快速利用\n2号車から乗車" },
     { "memo": "" }
   ]
 }
@@ -431,13 +435,14 @@ HTTP **200**。本文は共通形式:
 | `points[i].arrive` | 到着時刻（地点2以降・任意） |
 | `points[i].depart` | 出発時刻（地点2以降・任意） |
 | `legs` | 経由メモの配列。長さは **`points.length - 1`** |
-| `legs[j].memo` | 地点 j+1 → j+2 間のメモ（任意・空文字可） |
+| `legs[j].memo` | 地点 j+1 → j+2 間のメモ（任意・空文字可・1行想定） |
+| `legs[j].note` | 経由メモの補足（任意・空文字可・**複数行可**。改行は `\n`） |
 
 **検証ルール（API）**
 
 - 地点1: `place`・`time` は任意（空白のみは不可の判定は「内容あり」チェックに含める）
-- パーツ全体: 地点または経由メモのいずれか **1件以上** の入力が必要
-- `place`・`legs[].memo`: 文中・先頭の空白は保持する。クライアント保存時は **末尾空白のみ削除**（`trimEnd` / `rstrip`）
+- パーツ全体: 地点または経由メモ（`memo` / `note`）のいずれか **1件以上** の入力が必要
+- `place`・`legs[].memo`・`legs[].note`: 文中・先頭の空白は保持する。クライアント保存時は **末尾空白のみ削除**（`trimEnd` / `rstrip`）
 - 地点2以降: 全フィールド空の地点は無視（末尾の空地点のみ）
 - `legs` の件数は有効な `points` の件数 − 1 と一致すること
 - 地点2以降で `time` と `arrive` / `depart` を同時に指定しないこと

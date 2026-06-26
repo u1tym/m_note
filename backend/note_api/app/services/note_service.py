@@ -52,6 +52,14 @@ def _validate_filename_for_type(ptype: str, filename: str) -> ResultResponse | N
     return None
 
 
+def _resolve_part_title(ptype: str, title: str | None, existing: str = "") -> str:
+    if ptype in ("jpeg", "png"):
+        if title is None:
+            return existing
+        return title.strip()
+    return ""
+
+
 def _load_part_revisions(db: Session, parts_id: int) -> list[PartRevisionSummary]:
     rows = db.scalars(
         select(PartRevision)
@@ -279,6 +287,7 @@ def get_file_detail(
                 ptype=p.ptype,
                 data=p.data,
                 filename=p.filename,
+                title=p.title,
                 is_del=p.is_deleted,
                 revisions=_load_part_revisions(db, p.id) if _is_versioned_part_type(p.ptype) else [],
             )
@@ -693,7 +702,7 @@ def get_part_or_none(db: Session, aid: int, parts_id: int) -> Part | None:
 
 
 def create_part(
-    db: Session, aid: int, file_id: int, ptype: str, data: str, filename: str = ""
+    db: Session, aid: int, file_id: int, ptype: str, data: str, filename: str = "", title: str = ""
 ) -> ResultResponse:
     file_row = db.scalar(select(File).where(File.id == file_id, File.aid == aid))
     if file_row is None:
@@ -723,6 +732,7 @@ def create_part(
         ptype=ptype,
         data=part_data,
         filename=filename,
+        title=_resolve_part_title(ptype, title),
     )
     db.add(part)
     db.commit()
@@ -746,6 +756,7 @@ def update_part(
     ptype: str,
     data: str,
     filename: str | None = None,
+    title: str | None = None,
 ) -> ResultResponse:
     part = get_part_or_none(db, aid, parts_id)
     if part is None:
@@ -770,6 +781,7 @@ def update_part(
     part.ptype = ptype
     part.data = data
     part.filename = new_filename
+    part.title = _resolve_part_title(ptype, title, part.title)
     db.commit()
     return _ok()
 

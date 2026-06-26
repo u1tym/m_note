@@ -9,6 +9,8 @@ export interface ActionPlanPoint {
 
 export interface ActionPlanLeg {
   memo: string
+  /** 経由メモの補足（複数行可） */
+  note?: string
 }
 
 export interface ActionPlanData {
@@ -47,7 +49,7 @@ function planHasContent(plan: ActionPlanData): boolean {
   if (plan.points.some((p) => !pointIsEmpty(p))) {
     return true
   }
-  return plan.legs.some((leg) => !isBlank(leg.memo))
+  return plan.legs.some((leg) => !isBlank(leg.memo) || !isBlank(leg.note))
 }
 
 export function emptyActionPlan(): ActionPlanData {
@@ -79,7 +81,10 @@ export function parseActionPlan(data: string): ActionPlanData | null {
     const legs = Array.isArray(obj.legs)
       ? obj.legs.map((item) => {
           const leg = item as Record<string, unknown>
-          return { memo: trimEndField(leg.memo) }
+          return {
+            memo: trimEndField(leg.memo),
+            note: trimEndField(leg.note) || undefined,
+          }
         })
       : []
     return normalizeActionPlan({ points, legs })
@@ -130,7 +135,10 @@ export function normalizeActionPlan(plan: ActionPlanData): ActionPlanData {
 
   const legs: ActionPlanLeg[] = []
   for (let i = 0; i < points.length - 1; i += 1) {
-    legs.push({ memo: trimEndField(editor.legs[i]?.memo) })
+    legs.push({
+      memo: trimEndField(editor.legs[i]?.memo),
+      note: trimEndField(editor.legs[i]?.note) || undefined,
+    })
   }
 
   return { points, legs }
@@ -168,7 +176,10 @@ export function normalizeActionPlanForEditor(plan: ActionPlanData): ActionPlanDa
 
   const legs: ActionPlanLeg[] = []
   for (let i = 0; i < points.length - 1; i += 1) {
-    legs.push({ memo: asString(plan.legs[i]?.memo) })
+    legs.push({
+      memo: asString(plan.legs[i]?.memo),
+      note: asString(plan.legs[i]?.note),
+    })
   }
 
   return { points, legs }
@@ -236,7 +247,7 @@ export function formatPointTimes(point: ActionPlanPoint, index: number): string 
 export function addNextPoint(plan: ActionPlanData): ActionPlanData {
   const normalized = normalizeActionPlanForEditor(plan)
   normalized.points.push({ place: '' })
-  normalized.legs.push({ memo: '' })
+  normalized.legs.push({ memo: '', note: '' })
   return normalized
 }
 

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/parts", tags=["parts"])
 @router.post("/create", response_model=ResultResponse)
 def create_part(body: PartCreateRequest, aid: CurrentAid, db: DbSession) -> ResultResponse:
     return note_service.create_part(
-        db, aid, body.file_id, body.ptype, body.data, body.filename
+        db, aid, body.file_id, body.ptype, body.data, body.filename, body.title
     )
 
 
@@ -35,7 +35,7 @@ def undelete_part(body: PartIdRequest, aid: CurrentAid, db: DbSession) -> Result
 @router.post("/update", response_model=ResultResponse)
 def update_part(body: PartUpdateRequest, aid: CurrentAid, db: DbSession) -> ResultResponse:
     return note_service.update_part(
-        db, aid, body.parts_id, body.ptype, body.data, body.filename
+        db, aid, body.parts_id, body.ptype, body.data, body.filename, body.title
     )
 
 

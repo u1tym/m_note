@@ -83,6 +83,14 @@ function setLegMemo(index: number, memo: string): void {
   emitUpdate()
 }
 
+function setLegNote(index: number, note: string): void {
+  if (!localPlan.value.legs[index]) {
+    return
+  }
+  localPlan.value.legs[index].note = note
+  emitUpdate()
+}
+
 function toggleSplitMode(index: number, useSplit: boolean): void {
   splitModeByIndex.value[index] = useSplit
   const point = localPlan.value.points[index]
@@ -225,18 +233,30 @@ function isSplitMode(index: number): boolean {
         </template>
       </fieldset>
 
-      <label
+      <div
         v-if="index < localPlan.points.length - 1"
-        class="action-field action-leg-field"
+        class="action-leg-field"
       >
-        <span>経由{{ index + 1 }}-{{ index + 2 }}メモ</span>
-        <input
-          type="text"
-          :value="localPlan.legs[index]?.memo ?? ''"
-          placeholder="例: 山手線"
-          @input="setLegMemo(index, ($event.target as HTMLInputElement).value)"
-        />
-      </label>
+        <label class="action-field">
+          <span>経由{{ index + 1 }}-{{ index + 2 }}メモ</span>
+          <input
+            type="text"
+            :value="localPlan.legs[index]?.memo ?? ''"
+            placeholder="例: 山手線"
+            @input="setLegMemo(index, ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <label class="action-field">
+          <span>補足メモ</span>
+          <textarea
+            class="action-leg-note-input"
+            :value="localPlan.legs[index]?.note ?? ''"
+            rows="3"
+            placeholder="複数行で補足を入力できます"
+            @input="setLegNote(index, ($event.target as HTMLTextAreaElement).value)"
+          />
+        </label>
+      </div>
     </template>
 
     <button type="button" class="action-add-point" @click="onAddPoint">地点を追加</button>

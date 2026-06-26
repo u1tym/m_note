@@ -69,6 +69,7 @@ class Part(Base):
     ptype: Mapped[str] = mapped_column(Text, nullable=False)
     data: Mapped[str] = mapped_column(Text, nullable=False)
     filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
 class PartRevision(Base):

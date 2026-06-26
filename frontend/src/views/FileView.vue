@@ -40,9 +40,14 @@ async function load(): Promise<void> {
   }
 }
 
-async function onAddPart(type: PartsType, data: string, filename: string): Promise<void> {
+async function onAddPart(
+  type: PartsType,
+  data: string,
+  filename: string,
+  title: string,
+): Promise<void> {
   try {
-    const res = await createPart(numericFileId.value, type, data, filename)
+    const res = await createPart(numericFileId.value, type, data, filename, title)
     if (!res.result) {
       throw new Error(res.reason ?? 'パーツ作成に失敗しました')
     }
@@ -57,9 +62,10 @@ async function onUpdatePart(
   type: PartsType,
   data: string,
   filename: string,
+  title: string,
 ): Promise<void> {
   try {
-    const res = await updatePart(part.id, type, data, filename)
+    const res = await updatePart(part.id, type, data, filename, title)
     if (!res.result) {
       throw new Error(res.reason ?? 'パーツ更新に失敗しました')
     }
