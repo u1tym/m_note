@@ -44,6 +44,17 @@ export interface PartRevisionSummary {
   created_at: string
 }
 
+export type ImageMarkerKind = 'house' | 'number'
+
+export interface ImageMarker {
+  id: string
+  kind: ImageMarkerKind
+  x: number
+  y: number
+  text: string
+  number?: number
+}
+
 export interface PartInfo {
   id: number
   dorder: number
@@ -51,6 +62,7 @@ export interface PartInfo {
   data: string
   filename: string
   title: string
+  markers: ImageMarker[]
   is_del: boolean
   revisions: PartRevisionSummary[]
 }

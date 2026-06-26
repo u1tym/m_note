@@ -70,6 +70,7 @@ class Part(Base):
     data: Mapped[str] = mapped_column(Text, nullable=False)
     filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
     title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    markers: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
 
 
 class PartRevision(Base):

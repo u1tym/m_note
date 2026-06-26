@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { getPartRevision } from '../api/noteApi'
-import type { PartInfo, PartRevisionSummary, PartsType } from '../api/types'
+import type { ImageMarker, PartInfo, PartRevisionSummary, PartsType } from '../api/types'
 import { formatApiError } from '../api/errors'
 import {
   acceptForPartType,
@@ -20,8 +20,10 @@ import {
   validateActionPlan,
   type ActionPlanData,
 } from '../utils/actionPlan'
+import { cloneMarkers } from '../utils/imageMarkers'
 import ActionPlanEditor from './ActionPlanEditor.vue'
 import ActionPlanView from './ActionPlanView.vue'
+import ImagePartView from './ImagePartView.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
 import TableEditor from './TableEditor.vue'
 import TableView from './TableView.vue'
@@ -32,8 +34,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: [type: PartsType, data: string, filename: string, title: string]
-  update: [part: PartInfo, type: PartsType, data: string, filename: string, title: string]
+  add: [type: PartsType, data: string, filename: string, title: string, markers: ImageMarker[]]
+  update: [
+    part: PartInfo,
+    type: PartsType,
+    data: string,
+    filename: string,
+    title: string,
+    markers: ImageMarker[],
+  ]
   delete: [partsId: number]
   reorder: [partsId1: number, partsId2: number]
 }>()
@@ -42,6 +51,7 @@ const newType = ref<PartsType>('text')
 const newData = ref('')
 const newFilename = ref('')
 const newTitle = ref('')
+const newMarkers = ref<ImageMarker[]>([])
 const replacingPartId = ref<number | null>(null)
 const downloadingRevisionId = ref<number | null>(null)
 const localError = ref<string | null>(null)
@@ -51,6 +61,7 @@ const sheetMode = ref<'actions' | 'edit'>('actions')
 const editData = ref('')
 const editFilename = ref('')
 const editTitle = ref('')
+const editMarkers = ref<ImageMarker[]>([])
 const editActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const newActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const saving = ref(false)
@@ -139,6 +150,7 @@ function closeSheet(): void {
   editData.value = ''
   editFilename.value = ''
   editTitle.value = ''
+  editMarkers.value = []
   editActionPlan.value = emptyActionPlan()
 }
 
@@ -154,6 +166,7 @@ function startEdit(): void {
   }
   editFilename.value = part.filename
   editTitle.value = part.title
+  editMarkers.value = cloneMarkers(part.markers ?? [])
   sheetMode.value = 'edit'
   localError.value = null
 }
@@ -164,6 +177,7 @@ watch(activePartId, (id) => {
     editData.value = ''
     editFilename.value = ''
     editTitle.value = ''
+    editMarkers.value = []
     editActionPlan.value = emptyActionPlan()
   }
 })
@@ -175,6 +189,9 @@ watch(newType, (type) => {
   }
   if (type === 'table') {
     newData.value = ''
+  }
+  if (!isImageType(type)) {
+    newMarkers.value = []
   }
 })
 
@@ -191,6 +208,7 @@ function resetAddForm(): void {
   newData.value = ''
   newFilename.value = ''
   newTitle.value = ''
+  newMarkers.value = []
   newActionPlan.value = emptyActionPlan()
 }
 
@@ -218,6 +236,7 @@ async function onPickBinaryFileForNew(): Promise<void> {
   }
   newFilename.value = file.name
   newData.value = await readFileAsBase64(file)
+  newMarkers.value = []
 }
 
 async function onAdd(): Promise<void> {
@@ -228,12 +247,12 @@ async function onAdd(): Promise<void> {
       localError.value = err
       return
     }
-    emit('add', 'action', serializeActionPlan(newActionPlan.value), '', '')
+    emit('add', 'action', serializeActionPlan(newActionPlan.value), '', '', [])
     finishAdd()
     return
   }
   if (isTableType(newType.value)) {
-    emit('add', 'table', '', '', '')
+    emit('add', 'table', '', '', '', [])
     finishAdd()
     return
   }
@@ -253,6 +272,7 @@ async function onAdd(): Promise<void> {
     newData.value,
     newFilename.value.trim(),
     isImageType(newType.value) ? newTitle.value.trim() : '',
+    isImageType(newType.value) ? newMarkers.value : [],
   )
   finishAdd()
 }
@@ -304,6 +324,7 @@ async function onReplaceBinaryInEdit(): Promise<void> {
   try {
     editFilename.value = file.name
     editData.value = await readFileAsBase64(file)
+    editMarkers.value = []
   } finally {
     replacingPartId.value = null
   }
@@ -323,7 +344,7 @@ async function onSaveEdit(): Promise<void> {
     }
     saving.value = true
     try {
-      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '', '')
+      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '', '', [])
       closeSheet()
     } finally {
       saving.value = false
@@ -347,6 +368,7 @@ async function onSaveEdit(): Promise<void> {
       editData.value,
       editFilename.value.trim(),
       isImageType(part.ptype) ? editTitle.value.trim() : '',
+      isImageType(part.ptype) ? editMarkers.value : [],
     )
     closeSheet()
   } finally {
@@ -402,12 +424,12 @@ function onOverlayClick(): void {
         </div>
 
         <button type="button" class="part-view" @click="openPart(part)">
-            <template v-if="part.ptype === 'jpeg' || part.ptype === 'png'">
-              <p v-if="part.title" class="table-title">{{ part.title }}</p>
-              <img
-                class="part-image"
-                :src="`data:image/${part.ptype};base64,${part.data}`"
-                :alt="part.title || part.filename || `part-${part.id}`"
+            <template v-if="isImageType(part.ptype)">
+              <ImagePartView
+                :ptype="part.ptype as 'jpeg' | 'png'"
+                :data="part.data"
+                :title="part.title"
+                :markers="part.markers ?? []"
               />
             </template>
             <template v-else-if="part.ptype === 'binary'">
@@ -452,13 +474,14 @@ function onOverlayClick(): void {
 
         <template v-if="sheetMode === 'actions'">
           <div class="part-sheet-preview">
-            <template v-if="activePart.ptype === 'jpeg' || activePart.ptype === 'png'">
-              <p v-if="activePart.title" class="table-title">{{ activePart.title }}</p>
-              <p v-if="activePart.filename" class="binary-filename">{{ activePart.filename }}</p>
-              <img
-                class="part-image"
-                :src="`data:image/${activePart.ptype};base64,${activePart.data}`"
-                :alt="activePart.title || activePart.filename || `part-${activePart.id}`"
+            <template v-if="isImageType(activePart.ptype)">
+              <ImagePartView
+                :ptype="activePart.ptype as 'jpeg' | 'png'"
+                :data="activePart.data"
+                :title="activePart.title"
+                :filename="activePart.filename"
+                show-filename
+                :markers="activePart.markers ?? []"
               />
             </template>
             <template v-else-if="activePart.ptype === 'binary'">
@@ -563,6 +586,14 @@ function onOverlayClick(): void {
               >
                 {{ replacingPartId === activePart.id ? '読み込み中…' : 'ファイルを選択' }}
               </button>
+              <ImagePartView
+                v-if="editData"
+                :ptype="activePart.ptype as 'jpeg' | 'png'"
+                :data="editData"
+                :markers="editMarkers"
+                editable
+                @update:markers="editMarkers = $event"
+              />
             </template>
             <template v-else-if="activePart.ptype === 'binary'">
               <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
@@ -645,6 +676,15 @@ function onOverlayClick(): void {
           <button type="button" @click="onPickBinaryFileForNew">ファイルを選択</button>
           <span v-if="newFilename">{{ newFilename }}（約 {{ formatByteSize(newData.length) }}）</span>
         </div>
+        <ImagePartView
+          v-if="isImageType(newType) && newData"
+          :ptype="newType as 'jpeg' | 'png'"
+          :data="newData"
+          :title="newTitle"
+          :markers="newMarkers"
+          editable
+          @update:markers="newMarkers = $event"
+        />
         <div v-if="hasPreview(newType) && newData" class="part-preview">
           <p class="preview-label">プレビュー</p>
           <MarkdownPreview v-if="newType === 'md'" :source="newData" />

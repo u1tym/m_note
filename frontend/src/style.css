@@ -517,6 +517,154 @@ textarea {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
+  display: block;
+}
+
+.part-image--placeable {
+  cursor: crosshair;
+}
+
+.image-part {
+  width: 100%;
+}
+
+.image-part-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.image-marker-toolbar {
+  margin: 8px 0;
+}
+
+.image-marker-toolbar-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  color: #52525b;
+}
+
+.image-marker-kind-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.image-marker-kind-btn {
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.image-marker-kind-btn--active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.image-marker-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.image-marker-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.image-marker-pin--house {
+  background: #ea580c;
+  color: #fff;
+}
+
+.image-marker-pin--number {
+  background: #2563eb;
+  color: #fff;
+}
+
+.image-marker-pin--selected {
+  outline: 2px solid #facc15;
+  outline-offset: 2px;
+}
+
+.part-image--placeable + .image-marker-pin,
+.image-part-frame .image-marker-pin {
+  cursor: pointer;
+}
+
+.image-marker-legend {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.image-marker-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0;
+  font-size: 0.875rem;
+  color: #3f3f46;
+}
+
+.image-marker-legend-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.image-marker-legend-icon--house {
+  background: #ea580c;
+  color: #fff;
+}
+
+.image-marker-legend-icon--number {
+  background: #2563eb;
+  color: #fff;
+}
+
+.image-marker-legend-text {
+  flex: 1;
+}
+
+.image-marker-legend-input {
+  flex: 1;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+}
+
+.image-marker-remove-btn {
+  flex-shrink: 0;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
 .binary-filename {

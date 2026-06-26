@@ -4,6 +4,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from note_api.app.action_plan import validate_action_plan_data
+from note_api.app.image_markers import markers_for_response, resolve_part_markers_db
 from note_api.app.services import table_service
 from note_api.app.config import get_settings
 from note_api.app.models import File, Folder, Part, PartRevision
@@ -12,6 +13,7 @@ from note_api.app.schemas import (
     FileGetResponse,
     FileItem,
     FolderItem,
+    ImageMarkerItem,
     ItemsListResponse,
     ParentInfo,
     PartInfo,
@@ -288,6 +290,7 @@ def get_file_detail(
                 data=p.data,
                 filename=p.filename,
                 title=p.title,
+                markers=markers_for_response(p.ptype, p.markers),
                 is_del=p.is_deleted,
                 revisions=_load_part_revisions(db, p.id) if _is_versioned_part_type(p.ptype) else [],
             )
@@ -702,7 +705,14 @@ def get_part_or_none(db: Session, aid: int, parts_id: int) -> Part | None:
 
 
 def create_part(
-    db: Session, aid: int, file_id: int, ptype: str, data: str, filename: str = "", title: str = ""
+    db: Session,
+    aid: int,
+    file_id: int,
+    ptype: str,
+    data: str,
+    filename: str = "",
+    title: str = "",
+    markers: list[ImageMarkerItem] | None = None,
 ) -> ResultResponse:
     file_row = db.scalar(select(File).where(File.id == file_id, File.aid == aid))
     if file_row is None:
@@ -724,6 +734,10 @@ def create_part(
         table_row = table_service.create_table_for_part(db, aid)
         part_data = str(table_row.id)
 
+    markers_db, invalid = resolve_part_markers_db(ptype, markers)
+    if invalid is not None:
+        return invalid
+
     part = Part(
         aid=aid,
         file=file_id,
@@ -733,6 +747,7 @@ def create_part(
         data=part_data,
         filename=filename,
         title=_resolve_part_title(ptype, title),
+        markers=markers_db,
     )
     db.add(part)
     db.commit()
@@ -757,6 +772,7 @@ def update_part(
     data: str,
     filename: str | None = None,
     title: str | None = None,
+    markers: list[ImageMarkerItem] | None = None,
 ) -> ResultResponse:
     part = get_part_or_none(db, aid, parts_id)
     if part is None:
@@ -778,10 +794,21 @@ def update_part(
     if _is_versioned_part_type(part.ptype) and content_changed:
         _save_part_revision(db, aid, part)
 
+    image_replaced = part.ptype in ("jpeg", "png") and part.data != data
+    markers_db, invalid = resolve_part_markers_db(
+        ptype,
+        markers,
+        part.markers,
+        reset=image_replaced,
+    )
+    if invalid is not None:
+        return invalid
+
     part.ptype = ptype
     part.data = data
     part.filename = new_filename
     part.title = _resolve_part_title(ptype, title, part.title)
+    part.markers = markers_db
     db.commit()
     return _ok()
 

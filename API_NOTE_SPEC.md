@@ -191,6 +191,7 @@ HTTP **200**。本文は共通形式:
       "data": "...",
       "filename": "memo.pdf",
       "title": "",
+      "markers": [],
       "is_del": false,
       "revisions": [
         {
@@ -210,6 +211,7 @@ HTTP **200**。本文は共通形式:
 |------------|------|
 | `parts[].filename` | 現在世代のファイル名（`jpeg` / `png` / `binary` で使用） |
 | `parts[].title` | 表示用タイトル（`jpeg` / `png` で使用。任意。空文字可） |
+| `parts[].markers` | 画像マーカー配列（`jpeg` / `png` で使用。各要素: `id`, `kind`=`house`/`number`, `x`/`y`（0〜1）, `text`, 番号時は `number`） |
 | `parts[].revisions` | 過去世代の一覧（メタデータのみ。`data` は含まない）。`jpeg` / `png` / `binary` のみ |
 
 **処理:** 自アカウントのファイル・所属フォルダ・パーツを取得。削除済みファイルも取得可。パーツは `include_deleted` に従いフィルタし、`dorder` 昇順で返す。各パーツに `is_del`（`is_deleted` の反映）を含む。
@@ -367,6 +369,7 @@ HTTP **200**。本文は共通形式:
 - `jpeg` / `png` / `binary` のとき `data` は Base64 文字列
 - `jpeg` / `png` / `binary` のとき **`filename` 必須**（空不可）
 - `jpeg` / `png` のとき **`title` 任意**（表示用。省略時は空文字）
+- `jpeg` / `png` のとき **`markers` 任意**（画像上のマーカー配列。省略時は空配列）
 - `action`（行動予定）のとき `data` は **JSON 文字列**（構造は [D-4a](#d-4a-行動予定-action-の-data-形式)）
 - `table`（表）のとき **`data` は空文字**。サーバーが `note.table` を作成し、`parts.data` にその ID を格納する（初期 5×5）
 
@@ -402,6 +405,7 @@ HTTP **200**。本文は共通形式:
 
 - `filename` 省略時は既存値を維持
 - `title` 省略時は既存値を維持（`jpeg` / `png` のみ有効。他種別では空文字に正規化）
+- `markers` 省略時は既存値を維持（`jpeg` / `png` のみ有効。他種別では空配列に正規化。画像データの差し替え時はリセット）
 - `jpeg` / `png` / `binary` では **`filename` 必須**（省略時は既存値が空ならエラー）
 
 **処理:** `ptype`・`data`・`filename`・`title` を更新。`jpeg` / `png` / `binary` で **画像データ・種別・filename** が変わる場合、更新前の状態を `note.parts_revision` に保存し、`PARTS_MAX_REVISIONS` を超える古い世代を削除する（`title` の変更のみでは世代は増えない）。`action` のときは data の JSON 構造を検証する。

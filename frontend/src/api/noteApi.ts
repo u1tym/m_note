@@ -1,6 +1,7 @@
 import { postNote } from './noteClient'
 import type {
   FileGetResponse,
+  ImageMarker,
   ItemsListResponse,
   PartRevisionGetResponse,
   PartsType,
@@ -113,6 +114,7 @@ export async function createPart(
   data: string,
   filename = '',
   title = '',
+  markers: ImageMarker[] = [],
 ): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/create', {
     file_id: fileId,
@@ -120,6 +122,7 @@ export async function createPart(
     data,
     filename,
     title,
+    markers,
   })
 }
 
@@ -129,6 +132,7 @@ export async function updatePart(
   data: string,
   filename?: string,
   title?: string,
+  markers?: ImageMarker[],
 ): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/update', {
     parts_id: partsId,
@@ -136,6 +140,7 @@ export async function updatePart(
     data,
     ...(filename !== undefined ? { filename } : {}),
     ...(title !== undefined ? { title } : {}),
+    ...(markers !== undefined ? { markers } : {}),
   })
 }
 

@@ -3,6 +3,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 PartsType = Literal["jpeg", "png", "text", "tex", "md", "binary", "url", "action", "table"]
+ImageMarkerKind = Literal["house", "number"]
+
+
+class ImageMarkerItem(BaseModel):
+    id: str
+    kind: ImageMarkerKind
+    x: float
+    y: float
+    text: str = ""
+    number: int | None = None
 
 
 class ResultResponse(BaseModel):
@@ -59,6 +69,7 @@ class PartInfo(BaseModel):
     data: str
     filename: str
     title: str
+    markers: list[ImageMarkerItem] = []
     is_del: bool
     revisions: list["PartRevisionSummary"] = []
 
@@ -153,6 +164,7 @@ class PartCreateRequest(BaseModel):
     data: str
     filename: str = ""
     title: str = ""
+    markers: list[ImageMarkerItem] = []
 
     model_config = {"populate_by_name": True}
 
@@ -167,6 +179,7 @@ class PartUpdateRequest(BaseModel):
     data: str
     filename: str | None = None
     title: str | None = None
+    markers: list[ImageMarkerItem] | None = None
 
     model_config = {"populate_by_name": True}
 

@@ -145,6 +145,7 @@ create domain note.parts_type as text
 | `data` | text | NOT NULL | — | 本文データ |
 | `filename` | text | NOT NULL | `''` | ファイル名（`jpeg` / `png` / `binary` で使用。ダウンロード時の名前） |
 | `title` | text | NOT NULL | `''` | 表示用タイトル（`jpeg` / `png` で使用。任意） |
+| `markers` | text | NOT NULL | `'[]'` | 画像マーカー JSON（`jpeg` / `png` で使用） |
 
 ### 7.2 制約
 

@@ -9,7 +9,7 @@ import {
   swapPartOrder,
   updatePart,
 } from '../api/noteApi'
-import type { FileGetResponse, PartInfo, PartsType } from '../api/types'
+import type { FileGetResponse, ImageMarker, PartInfo, PartsType } from '../api/types'
 import { formatApiError } from '../api/errors'
 import PartEditor from '../components/PartEditor.vue'
 
@@ -45,9 +45,10 @@ async function onAddPart(
   data: string,
   filename: string,
   title: string,
+  markers: ImageMarker[],
 ): Promise<void> {
   try {
-    const res = await createPart(numericFileId.value, type, data, filename, title)
+    const res = await createPart(numericFileId.value, type, data, filename, title, markers)
     if (!res.result) {
       throw new Error(res.reason ?? 'パーツ作成に失敗しました')
     }
@@ -63,9 +64,10 @@ async function onUpdatePart(
   data: string,
   filename: string,
   title: string,
+  markers: ImageMarker[],
 ): Promise<void> {
   try {
-    const res = await updatePart(part.id, type, data, filename, title)
+    const res = await updatePart(part.id, type, data, filename, title, markers)
     if (!res.result) {
       throw new Error(res.reason ?? 'パーツ更新に失敗しました')
     }
