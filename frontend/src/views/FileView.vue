@@ -116,8 +116,8 @@ onMounted(() => {
   <div class="page">
     <header class="page-header">
       <button type="button" class="back-btn" @click="goBack">← 戻る</button>
-      <h1>{{ file?.title ?? 'ファイル' }}</h1>
       <p v-if="file" class="subtitle">{{ file.belong.name }}</p>
+      <h1>{{ file?.title ?? 'ファイル' }}</h1>
     </header>
 
     <p v-if="loading" class="status">読み込み中…</p>

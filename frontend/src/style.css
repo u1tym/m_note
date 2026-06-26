@@ -82,6 +82,10 @@ textarea {
   font-size: 0.875rem;
 }
 
+.page-header .subtitle + h1 {
+  margin-top: 4px;
+}
+
 .back-btn {
   border: none;
   background: none;
