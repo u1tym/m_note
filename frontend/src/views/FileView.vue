@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import {
@@ -11,7 +11,9 @@ import {
 } from '../api/noteApi'
 import type { FileGetResponse, ImageMarker, PartInfo, PartsType } from '../api/types'
 import { formatApiError } from '../api/errors'
+import FilePrintDocument from '../components/FilePrintDocument.vue'
 import PartEditor from '../components/PartEditor.vue'
+import { waitUntil } from '../utils/waitUntil'
 
 const props = defineProps<{
   fileId: string
@@ -21,6 +23,8 @@ const router = useRouter()
 const file = ref<FileGetResponse | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const exportingPdf = ref(false)
+const printReady = ref(false)
 
 const numericFileId = computed(() => Number(props.fileId))
 
@@ -109,6 +113,34 @@ function goBack(): void {
   router.push({ name: 'home' })
 }
 
+async function onExportPdf(): Promise<void> {
+  if (!file.value || loading.value) {
+    return
+  }
+  exportingPdf.value = true
+  error.value = null
+  try {
+    if (!printReady.value) {
+      const ready = await waitUntil(() => printReady.value)
+      if (!ready) {
+        throw new Error('PDF出力の準備に失敗しました')
+      }
+    }
+    window.print()
+  } catch (e) {
+    error.value = formatApiError(e)
+  } finally {
+    exportingPdf.value = false
+  }
+}
+
+watch(
+  () => file.value?.id,
+  () => {
+    printReady.value = false
+  },
+)
+
 onMounted(() => {
   void load()
 })
@@ -116,22 +148,43 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <header class="page-header">
-      <button type="button" class="back-btn" @click="goBack">← 戻る</button>
-      <p v-if="file" class="subtitle">{{ file.belong.name }}</p>
-      <h1>{{ file?.title ?? 'ファイル' }}</h1>
-    </header>
+    <div class="screen-only">
+      <header class="page-header">
+        <div class="page-header-toolbar">
+          <button type="button" class="back-btn" @click="goBack">← 戻る</button>
+          <button
+            type="button"
+            class="pdf-export-btn"
+            :disabled="loading || exportingPdf || !file"
+            @click="onExportPdf"
+          >
+            {{ exportingPdf ? '準備中…' : 'PDF出力' }}
+          </button>
+        </div>
+        <p v-if="file" class="subtitle">{{ file.belong.name }}</p>
+        <h1>{{ file?.title ?? 'ファイル' }}</h1>
+      </header>
 
-    <p v-if="loading" class="status">読み込み中…</p>
-    <p v-else-if="error" class="status error">{{ error }}</p>
+      <p v-if="loading" class="status">読み込み中…</p>
+      <p v-else-if="error" class="status error">{{ error }}</p>
 
-    <PartEditor
-      v-else-if="file"
-      :parts="activeParts"
-      @add="onAddPart"
-      @update="onUpdatePart"
-      @delete="onDeletePart"
-      @reorder="onReorderParts"
-    />
+      <PartEditor
+        v-else-if="file"
+        :parts="activeParts"
+        @add="onAddPart"
+        @update="onUpdatePart"
+        @delete="onDeletePart"
+        @reorder="onReorderParts"
+      />
+    </div>
+
+    <div v-if="file" class="print-only" aria-hidden="true">
+      <FilePrintDocument
+        :folder-name="file.belong.name"
+        :file-title="file.title"
+        :parts="activeParts"
+        @ready="printReady = true"
+      />
+    </div>
   </div>
 </template>

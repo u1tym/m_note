@@ -95,6 +95,29 @@ textarea {
   font-size: 0.9375rem;
 }
 
+.page-header-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pdf-export-btn {
+  flex-shrink: 0;
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.pdf-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .status {
   color: #71717a;
 }
@@ -1332,4 +1355,74 @@ textarea {
 .sheet-grid--readonly .sheet-cell {
   cursor: default;
   padding: 4px 6px;
+}
+
+.print-only {
+  display: none;
+}
+
+.file-print-document {
+  padding: 0;
+}
+
+.file-print-header {
+  margin-bottom: 16px;
+}
+
+.part-card--print {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.part-view--print {
+  padding: 0;
+  cursor: default;
+}
+
+.part-view--print:hover,
+.part-view--print:active {
+  background: none;
+}
+
+.parts-list--print {
+  margin-bottom: 0;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .app-shell {
+    max-width: none;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .page {
+    padding: 0;
+  }
+
+  .table-status {
+    display: none;
+  }
+
+  .image-marker-pin,
+  .image-marker-legend-icon--house,
+  .image-marker-legend-icon--number {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

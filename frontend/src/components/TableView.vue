@@ -18,6 +18,10 @@ const props = defineProps<{
   refreshToken?: number
 }>()
 
+const emit = defineEmits<{
+  loaded: []
+}>()
+
 const loading = ref(true)
 const error = ref<string | null>(null)
 const title = ref('')
@@ -40,6 +44,7 @@ async function load(): Promise<void> {
     error.value = formatApiError(e)
   } finally {
     loading.value = false
+    emit('loaded')
   }
 }
 
