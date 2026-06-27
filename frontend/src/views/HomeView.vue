@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 defineOptions({ name: 'HomeView' })
@@ -15,6 +15,7 @@ import {
   deleteFile,
   swapFolderOrder,
   swapFileOrder,
+  getFile,
 } from '../api/noteApi'
 import {
   loadRootFolders,
@@ -28,6 +29,11 @@ import { formatApiError } from '../api/errors'
 import FolderTree from '../components/FolderTree.vue'
 import FolderPicker from '../components/FolderPicker.vue'
 import BackToMenuButton from '../components/BackToMenuButton.vue'
+import MultiFilePrintDocument, {
+  type PrintFilePayload,
+} from '../components/MultiFilePrintDocument.vue'
+import type { PdfSelectionItem } from '../utils/pdfExport'
+import { waitUntil } from '../utils/waitUntil'
 
 const router = useRouter()
 const roots = ref<TreeFolderNode[]>([])
@@ -35,9 +41,101 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const selectedFolderId = ref<number | null>(null)
 const editMode = ref(false)
+const pdfExportMode = ref(false)
+const pdfSelection = ref<PdfSelectionItem[]>([])
+const printPayload = ref<PrintFilePayload[]>([])
+const printReady = ref(false)
+const printExportKey = ref(0)
+const exportingPdf = ref(false)
+const pdfError = ref<string | null>(null)
+const pdfPageBreakBetweenFiles = ref(true)
+
+const selectedPdfFileIds = computed(
+  () => new Set(pdfSelection.value.map((item) => item.fileId)),
+)
 
 function toggleEditMode(): void {
   editMode.value = !editMode.value
+  if (editMode.value) {
+    pdfExportMode.value = false
+    pdfSelection.value = []
+    printPayload.value = []
+  }
+}
+
+function togglePdfExportMode(): void {
+  pdfExportMode.value = !pdfExportMode.value
+  if (pdfExportMode.value) {
+    editMode.value = false
+    pdfError.value = null
+  } else {
+    pdfSelection.value = []
+    printPayload.value = []
+    printReady.value = false
+    pdfError.value = null
+    exportingPdf.value = false
+    pdfPageBreakBetweenFiles.value = true
+  }
+}
+
+function onTogglePdfFile(item: PdfSelectionItem): void {
+  const index = pdfSelection.value.findIndex((entry) => entry.fileId === item.fileId)
+  if (index >= 0) {
+    pdfSelection.value = pdfSelection.value.filter((entry) => entry.fileId !== item.fileId)
+    return
+  }
+  pdfSelection.value = [...pdfSelection.value, item]
+}
+
+function movePdfSelection(index: number, direction: -1 | 1): void {
+  const target = index + direction
+  if (target < 0 || target >= pdfSelection.value.length) {
+    return
+  }
+  const next = [...pdfSelection.value]
+  const [item] = next.splice(index, 1)
+  next.splice(target, 0, item)
+  pdfSelection.value = next
+}
+
+function removePdfSelection(fileId: number): void {
+  pdfSelection.value = pdfSelection.value.filter((entry) => entry.fileId !== fileId)
+}
+
+async function onExportCombinedPdf(): Promise<void> {
+  if (pdfSelection.value.length === 0 || exportingPdf.value) {
+    return
+  }
+  exportingPdf.value = true
+  printReady.value = false
+  pdfError.value = null
+  printPayload.value = []
+  try {
+    const loaded: PrintFilePayload[] = []
+    for (const item of pdfSelection.value) {
+      const data = await getFile(item.fileId, false)
+      loaded.push({
+        fileId: item.fileId,
+        folderName: data.belong.name,
+        fileTitle: data.title,
+        parts: data.parts.filter((part) => !part.is_del),
+      })
+    }
+    printExportKey.value += 1
+    printPayload.value = loaded
+    await nextTick()
+    const ready = await waitUntil(() => printReady.value)
+    if (!ready) {
+      throw new Error('PDF出力の準備に失敗しました')
+    }
+    window.print()
+  } catch (e) {
+    pdfError.value = formatApiError(e)
+    printPayload.value = []
+    printReady.value = false
+  } finally {
+    exportingPdf.value = false
+  }
 }
 
 const pickerOpen = ref(false)
@@ -288,52 +386,138 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <header class="page-header page-header--inline">
-      <BackToMenuButton />
-      <h1>Note</h1>
-      <button
-        v-if="!loading"
-        type="button"
-        class="header-edit-btn"
-        :aria-pressed="editMode"
-        @click="toggleEditMode"
-      >
-        {{ editMode ? '完了' : '編集' }}
-      </button>
-    </header>
+    <div class="screen-only">
+      <header class="page-header page-header--inline">
+        <BackToMenuButton />
+        <h1>Note</h1>
+        <div v-if="!loading" class="page-header-actions">
+          <button
+            type="button"
+            class="header-edit-btn"
+            :aria-pressed="pdfExportMode"
+            :disabled="editMode"
+            @click="togglePdfExportMode"
+          >
+            {{ pdfExportMode ? 'PDF完了' : 'PDF出力' }}
+          </button>
+          <button
+            type="button"
+            class="header-edit-btn"
+            :aria-pressed="editMode"
+            :disabled="pdfExportMode"
+            @click="toggleEditMode"
+          >
+            {{ editMode ? '完了' : '編集' }}
+          </button>
+        </div>
+      </header>
 
-    <p v-if="loading" class="status">読み込み中…</p>
-    <p v-else-if="error" class="status error">{{ error }}</p>
+      <p v-if="loading" class="status">読み込み中…</p>
+      <p v-if="error" class="status error">{{ error }}</p>
 
-    <FolderTree
-      v-else
-      :roots="roots"
-      :selected-folder-id="selectedFolderId"
-      :edit-mode="editMode"
-      @expand="onExpand"
-      @select-folder="onSelectFolder"
-      @open-file="openFile"
-      @create-root-folder="onCreateRootFolder"
-      @create-child-folder="onCreateChildFolder"
-      @rename-folder="onRenameFolder"
-      @delete-folder="onDeleteFolder"
-      @move-folder="onRequestMoveFolder"
-      @reorder-folder="onReorderFolder"
-      @create-file="onCreateFile"
-      @rename-file="onRenameFile"
-      @delete-file="onDeleteFile"
-      @move-file="onRequestMoveFile"
-      @reorder-file="onReorderFile"
-    />
+      <template v-if="!loading">
+        <p v-if="pdfExportMode" class="pdf-export-hint">
+          ファイルをクリックして選択します。選択した順に PDF に連結されます。
+        </p>
 
-    <FolderPicker
-      :open="pickerOpen"
-      :title="pickerTitle"
-      :folders="pickerFolders"
-      :exclude-ids="pickerExcludeIds"
-      :allow-root="pickerAllowRoot"
-      @pick="onPickerPick"
-      @cancel="onPickerCancel"
-    />
+        <FolderTree
+          :roots="roots"
+          :selected-folder-id="selectedFolderId"
+          :edit-mode="editMode"
+          :pdf-export-mode="pdfExportMode"
+          :selected-pdf-file-ids="selectedPdfFileIds"
+          @expand="onExpand"
+          @select-folder="onSelectFolder"
+          @open-file="openFile"
+          @toggle-pdf-file="onTogglePdfFile"
+          @create-root-folder="onCreateRootFolder"
+          @create-child-folder="onCreateChildFolder"
+          @rename-folder="onRenameFolder"
+          @delete-folder="onDeleteFolder"
+          @move-folder="onRequestMoveFolder"
+          @reorder-folder="onReorderFolder"
+          @create-file="onCreateFile"
+          @rename-file="onRenameFile"
+          @delete-file="onDeleteFile"
+          @move-file="onRequestMoveFile"
+          @reorder-file="onReorderFile"
+        />
+
+        <section v-if="pdfExportMode" class="pdf-selection-panel">
+          <p v-if="pdfError" class="status error pdf-selection-error">{{ pdfError }}</p>
+          <h2 class="pdf-selection-title">出力するファイル（{{ pdfSelection.length }}件）</h2>
+          <p v-if="pdfSelection.length === 0" class="empty-hint">
+            一覧からファイルを選択してください。
+          </p>
+          <ol v-else class="pdf-selection-list">
+            <li v-for="(item, index) in pdfSelection" :key="item.fileId" class="pdf-selection-row">
+              <span class="pdf-selection-label">
+                <span class="pdf-selection-order">{{ index + 1 }}.</span>
+                <span class="pdf-selection-folder">{{ item.folderName }}</span>
+                <span class="pdf-selection-name">{{ item.title }}</span>
+              </span>
+              <div class="pdf-selection-actions">
+                <button
+                  type="button"
+                  class="reorder-btn"
+                  :disabled="index === 0"
+                  aria-label="上へ"
+                  @click="movePdfSelection(index, -1)"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  class="reorder-btn"
+                  :disabled="index === pdfSelection.length - 1"
+                  aria-label="下へ"
+                  @click="movePdfSelection(index, 1)"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  class="pdf-selection-remove"
+                  @click="removePdfSelection(item.fileId)"
+                >
+                  除外
+                </button>
+              </div>
+            </li>
+          </ol>
+          <label class="pdf-page-break-option">
+            <input v-model="pdfPageBreakBetweenFiles" type="checkbox" />
+            ファイルごとに改ページ
+          </label>
+          <button
+            type="button"
+            class="pdf-export-btn"
+            :disabled="pdfSelection.length === 0 || exportingPdf"
+            @click="onExportCombinedPdf"
+          >
+            {{ exportingPdf ? '準備中…' : 'PDFに出力' }}
+          </button>
+        </section>
+      </template>
+
+      <FolderPicker
+        :open="pickerOpen"
+        :title="pickerTitle"
+        :folders="pickerFolders"
+        :exclude-ids="pickerExcludeIds"
+        :allow-root="pickerAllowRoot"
+        @pick="onPickerPick"
+        @cancel="onPickerCancel"
+      />
+    </div>
+
+    <div v-if="printPayload.length > 0" class="print-only" aria-hidden="true">
+      <MultiFilePrintDocument
+        :key="printExportKey"
+        :files="printPayload"
+        :page-break-between-files="pdfPageBreakBetweenFiles"
+        @ready="printReady = true"
+      />
+    </div>
   </div>
 </template>

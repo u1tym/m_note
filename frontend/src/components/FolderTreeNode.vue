@@ -12,12 +12,15 @@ const props = defineProps<{
   expandedIds: Set<number>
   selectedFolderId: number | null
   editMode: boolean
+  pdfExportMode: boolean
+  selectedPdfFileIds: ReadonlySet<number>
 }>()
 
 const emit = defineEmits<{
   toggleExpand: [folderId: number]
   selectFolder: [folderId: number]
   openFile: [fileId: number]
+  togglePdfFile: [item: { fileId: number; title: string; folderName: string }]
   createChild: [parentId: number]
   renameFolder: [folderId: number, current: string]
   deleteFolder: [folderId: number, parentId: number | null]
@@ -70,6 +73,17 @@ function onClickFolderName(): void {
   emit('selectFolder', props.node.id)
   emit('toggleExpand', props.node.id)
 }
+function onClickFile(file: FileItem): void {
+  if (props.pdfExportMode) {
+    emit('togglePdfFile', {
+      fileId: file.id,
+      title: file.title,
+      folderName: props.node.name,
+    })
+    return
+  }
+  emit('openFile', file.id)
+}
 </script>
 
 <template>
@@ -96,7 +110,7 @@ function onClickFolderName(): void {
         {{ node.name }}
       </button>
       <div class="row-actions">
-        <template v-if="!editMode">
+        <template v-if="!editMode && !pdfExportMode">
           <button type="button" title="子フォルダ追加" @click="emit('createChild', node.id)">+📁</button>
           <button type="button" title="ファイル追加" @click="emit('createFile', node.id)">+📄</button>
         </template>
@@ -139,9 +153,12 @@ function onClickFolderName(): void {
         :expanded-ids="expandedIds"
         :selected-folder-id="selectedFolderId"
         :edit-mode="editMode"
+        :pdf-export-mode="pdfExportMode"
+        :selected-pdf-file-ids="selectedPdfFileIds"
         @toggle-expand="(id) => emit('toggleExpand', id)"
         @select-folder="(id) => emit('selectFolder', id)"
         @open-file="(id) => emit('openFile', id)"
+        @toggle-pdf-file="(item) => emit('togglePdfFile', item)"
         @create-child="(id) => emit('createChild', id)"
         @rename-folder="(id, name) => emit('renameFolder', id, name)"
         @delete-folder="(id, pid) => emit('deleteFolder', id, pid)"
@@ -158,9 +175,20 @@ function onClickFolderName(): void {
         v-for="file in sortedFiles"
         :key="file.id"
         class="file-row"
+        :class="{ 'file-row--pdf-selected': pdfExportMode && selectedPdfFileIds.has(file.id) }"
         :style="{ paddingLeft: `${(depth + 1) * 12 + 8}px` }"
       >
+        <input
+          v-if="pdfExportMode"
+          type="checkbox"
+          class="pdf-file-checkbox"
+          :checked="selectedPdfFileIds.has(file.id)"
+          :aria-label="`${file.title} をPDF出力に含める`"
+          @click.stop
+          @change="onClickFile(file)"
+        />
         <button
+          v-else
           type="button"
           class="tree-row-icon"
           :aria-label="`${file.title} を開く`"
@@ -168,7 +196,7 @@ function onClickFolderName(): void {
         >
           📄
         </button>
-        <button type="button" class="file-name" @click="emit('openFile', file.id)">
+        <button type="button" class="file-name" @click="onClickFile(file)">
           {{ file.title }}
         </button>
         <div v-if="editMode" class="row-actions">

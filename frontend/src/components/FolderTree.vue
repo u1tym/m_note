@@ -8,12 +8,15 @@ const props = defineProps<{
   roots: TreeFolderNode[]
   selectedFolderId: number | null
   editMode: boolean
+  pdfExportMode: boolean
+  selectedPdfFileIds: ReadonlySet<number>
 }>()
 
 const emit = defineEmits<{
   expand: [folderId: number]
   selectFolder: [folderId: number | null]
   openFile: [fileId: number]
+  togglePdfFile: [item: { fileId: number; title: string; folderName: string }]
   createRootFolder: [name: string]
   createChildFolder: [parentId: number, name: string]
   renameFolder: [folderId: number, name: string]
@@ -86,7 +89,7 @@ function onRenameFile(file: FileItem, folderId: number): void {
 
 <template>
   <section class="tree-panel">
-    <div v-if="!editMode" class="tree-toolbar">
+    <div v-if="!editMode && !pdfExportMode" class="tree-toolbar">
       <button type="button" class="tree-icon-btn" title="ルートフォルダを追加" @click="onCreateRoot">
         +📁
       </button>
@@ -103,9 +106,12 @@ function onRenameFile(file: FileItem, folderId: number): void {
         :expanded-ids="expandedIds"
         :selected-folder-id="selectedFolderId"
         :edit-mode="editMode"
+        :pdf-export-mode="pdfExportMode"
+        :selected-pdf-file-ids="selectedPdfFileIds"
         @toggle-expand="toggleExpand"
         @select-folder="(id) => emit('selectFolder', id)"
         @open-file="(id) => emit('openFile', id)"
+        @toggle-pdf-file="(item) => emit('togglePdfFile', item)"
         @create-child="onCreateChild"
         @rename-folder="onRenameFolder"
         @delete-folder="(id, pid) => emit('deleteFolder', id, pid)"
