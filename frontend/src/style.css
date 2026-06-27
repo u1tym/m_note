@@ -1092,6 +1092,13 @@ textarea {
 
 .tex-preview {
   overflow-x: auto;
+  text-align: left;
+}
+
+.tex-preview .katex-display {
+  text-align: left;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .picker-overlay {
