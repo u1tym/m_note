@@ -295,6 +295,48 @@ textarea {
   margin-bottom: 24px;
 }
 
+@media print {
+  .image-part-canvas {
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .image-part-frame {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    height: auto !important;
+  }
+
+  .part-card--print:has(.image-part) {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .image-part {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .multi-file-print--continuous .file-print-document:not(:last-child) {
+    break-after: auto;
+    page-break-after: auto;
+    margin-bottom: 0;
+    padding-bottom: 12px;
+  }
+
+  .multi-file-print--continuous .file-print-document + .file-print-document {
+    padding-top: 12px;
+  }
+
+  .multi-file-print--continuous .file-print-header {
+    break-before: auto;
+    page-break-before: auto;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}
+
 .folder-row,
 .file-row {
   display: flex;
