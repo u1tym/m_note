@@ -1095,10 +1095,21 @@ textarea {
   text-align: left;
 }
 
-.tex-preview .katex-display {
+/* KaTeX 0.17 centers both .katex-display and its child .katex */
+.tex-preview .katex-display,
+.tex-preview .katex-display > .katex {
   text-align: left;
+}
+
+.tex-preview .katex-display {
   margin-left: 0;
   margin-right: 0;
+}
+
+.tex-preview .katex-display > .katex {
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
 }
 
 .picker-overlay {
