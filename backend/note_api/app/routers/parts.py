@@ -26,6 +26,7 @@ def create_part(body: PartCreateRequest, aid: CurrentAid, db: DbSession) -> Resu
         body.filename,
         body.title,
         body.markers,
+        body.image_scale,
     )
 
 
@@ -50,6 +51,7 @@ def update_part(body: PartUpdateRequest, aid: CurrentAid, db: DbSession) -> Resu
         body.filename,
         body.title,
         body.markers,
+        body.image_scale,
     )
 
 

@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import type { ImageMarker, ImageMarkerKind } from '../api/types'
+import {
+  clampImageScale,
+  markerPinPosition,
+  pointerToMarkerPosition,
+  scaledCanvasHeightPx,
+} from '../utils/imageScale'
 import {
   markerDisplayLabel,
   newMarkerId,
@@ -16,12 +22,14 @@ const props = withDefaults(
     filename?: string
     showFilename?: boolean
     markers: ImageMarker[]
+    imageScale?: number
     editable?: boolean
   }>(),
   {
     title: '',
     filename: '',
     showFilename: false,
+    imageScale: 1,
     editable: false,
   },
 )
@@ -32,38 +40,69 @@ const emit = defineEmits<{
 
 const placementKind = ref<ImageMarkerKind>('house')
 const selectedId = ref<string | null>(null)
+const canvasRef = ref<HTMLElement | null>(null)
+const canvasWidthPx = ref(0)
+const imageAspect = ref(0)
 
 const imageSrc = computed(() => `data:image/${props.ptype};base64,${props.data}`)
 const imageAlt = computed(
   () => props.title || props.filename || 'image part',
 )
+const clampedScale = computed(() => clampImageScale(props.imageScale))
+
+const canvasStyle = computed(() => {
+  const height = scaledCanvasHeightPx(canvasWidthPx.value, imageAspect.value, clampedScale.value)
+  return {
+    '--image-scale': String(clampedScale.value),
+    ...(height > 0 ? { height: `${height}px` } : {}),
+  }
+})
+
+const frameStyle = computed(() => ({
+  width: `${Math.round(clampedScale.value * 100)}%`,
+  height: '100%',
+}))
+
+function markerPinStyle(marker: ImageMarker): { left: string; top: string } {
+  return markerPinPosition(marker, clampedScale.value)
+}
+
+function measureCanvas(): void {
+  canvasWidthPx.value = canvasRef.value?.clientWidth ?? 0
+}
+
+function onImgLoad(event: Event): void {
+  const img = event.target as HTMLImageElement
+  if (img.naturalWidth > 0) {
+    imageAspect.value = img.naturalHeight / img.naturalWidth
+  }
+  measureCanvas()
+}
 
 function onImageClick(event: MouseEvent): void {
-  if (!props.editable) {
+  if (!props.editable || !canvasRef.value) {
     return
   }
-  const img = event.currentTarget as HTMLImageElement
-  const rect = img.getBoundingClientRect()
-  if (rect.width === 0 || rect.height === 0) {
-    return
-  }
-  const x = (event.clientX - rect.left) / rect.width
-  const y = (event.clientY - rect.top) / rect.height
+  const rect = canvasRef.value.getBoundingClientRect()
+  const { x, y } = pointerToMarkerPosition(
+    event.clientX,
+    event.clientY,
+    rect,
+    clampedScale.value,
+  )
   addMarker(x, y)
 }
 
 function addMarker(x: number, y: number): void {
-  const clampedX = Math.min(1, Math.max(0, x))
-  const clampedY = Math.min(1, Math.max(0, y))
   const marker: ImageMarker =
     placementKind.value === 'house'
-      ? { id: newMarkerId(), kind: 'house', x: clampedX, y: clampedY, text: '' }
+      ? { id: newMarkerId(), kind: 'house', x, y, text: '' }
       : {
           id: newMarkerId(),
           kind: 'number',
           number: nextMarkerNumber(props.markers),
-          x: clampedX,
-          y: clampedY,
+          x,
+          y,
           text: '',
         }
   emit('update:markers', [...props.markers, marker])
@@ -93,6 +132,30 @@ function onMarkerPinClick(id: string, event: Event): void {
     selectedId.value = id
   }
 }
+
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  measureCanvas()
+  if (canvasRef.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      measureCanvas()
+    })
+    resizeObserver.observe(canvasRef.value)
+  }
+})
+
+onUnmounted(() => {
+  resizeObserver?.disconnect()
+})
+
+watch(
+  () => [props.data, props.imageScale] as const,
+  async () => {
+    await nextTick()
+    measureCanvas()
+  },
+)
 </script>
 
 <template>
@@ -123,14 +186,17 @@ function onMarkerPinClick(id: string, event: Event): void {
       <p class="image-marker-hint">画像をクリックしてマーカーを配置します</p>
     </div>
 
-    <div class="image-part-frame">
-      <img
-        class="part-image"
-        :class="{ 'part-image--placeable': editable }"
-        :src="imageSrc"
-        :alt="imageAlt"
-        @click="onImageClick"
-      />
+    <div ref="canvasRef" class="image-part-canvas" :style="canvasStyle">
+      <div class="image-part-frame" :style="frameStyle">
+        <img
+          class="part-image"
+          :class="{ 'part-image--placeable': editable }"
+          :src="imageSrc"
+          :alt="imageAlt"
+          @load="onImgLoad"
+          @click="onImageClick"
+        />
+      </div>
       <button
         v-for="marker in markers"
         :key="marker.id"
@@ -141,7 +207,7 @@ function onMarkerPinClick(id: string, event: Event): void {
           'image-marker-pin--number': marker.kind === 'number',
           'image-marker-pin--selected': editable && selectedId === marker.id,
         }"
-        :style="{ left: `${marker.x * 100}%`, top: `${marker.y * 100}%` }"
+        :style="markerPinStyle(marker)"
         :aria-label="marker.text || markerDisplayLabel(marker)"
         @click="onMarkerPinClick(marker.id, $event)"
       >

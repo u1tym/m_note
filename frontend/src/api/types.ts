@@ -63,6 +63,7 @@ export interface PartInfo {
   filename: string
   title: string
   markers: ImageMarker[]
+  image_scale: number
   is_del: boolean
   revisions: PartRevisionSummary[]
 }

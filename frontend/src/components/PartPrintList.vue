@@ -37,6 +37,7 @@ function onTableLoaded(part: PartInfo): void {
             :data="part.data"
             :title="part.title"
             :markers="part.markers ?? []"
+            :image-scale="part.image_scale ?? 1"
           />
         </template>
         <template v-else-if="part.ptype === 'binary'">

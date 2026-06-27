@@ -21,6 +21,7 @@ import {
   type ActionPlanData,
 } from '../utils/actionPlan'
 import { cloneMarkers } from '../utils/imageMarkers'
+import { percentToScale, scaleToPercent } from '../utils/imageScale'
 import ActionPlanEditor from './ActionPlanEditor.vue'
 import ActionPlanView from './ActionPlanView.vue'
 import ImagePartView from './ImagePartView.vue'
@@ -34,7 +35,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  add: [type: PartsType, data: string, filename: string, title: string, markers: ImageMarker[]]
+  add: [
+    type: PartsType,
+    data: string,
+    filename: string,
+    title: string,
+    markers: ImageMarker[],
+    imageScale: number,
+  ]
   update: [
     part: PartInfo,
     type: PartsType,
@@ -42,6 +50,7 @@ const emit = defineEmits<{
     filename: string,
     title: string,
     markers: ImageMarker[],
+    imageScale: number,
   ]
   delete: [partsId: number]
   reorder: [partsId1: number, partsId2: number]
@@ -52,6 +61,7 @@ const newData = ref('')
 const newFilename = ref('')
 const newTitle = ref('')
 const newMarkers = ref<ImageMarker[]>([])
+const newScalePercent = ref(100)
 const replacingPartId = ref<number | null>(null)
 const downloadingRevisionId = ref<number | null>(null)
 const localError = ref<string | null>(null)
@@ -62,6 +72,7 @@ const editData = ref('')
 const editFilename = ref('')
 const editTitle = ref('')
 const editMarkers = ref<ImageMarker[]>([])
+const editScalePercent = ref(100)
 const editActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const newActionPlan = ref<ActionPlanData>(emptyActionPlan())
 const saving = ref(false)
@@ -151,6 +162,7 @@ function closeSheet(): void {
   editFilename.value = ''
   editTitle.value = ''
   editMarkers.value = []
+  editScalePercent.value = 100
   editActionPlan.value = emptyActionPlan()
 }
 
@@ -167,6 +179,7 @@ function startEdit(): void {
   editFilename.value = part.filename
   editTitle.value = part.title
   editMarkers.value = cloneMarkers(part.markers ?? [])
+  editScalePercent.value = scaleToPercent(part.image_scale ?? 1)
   sheetMode.value = 'edit'
   localError.value = null
 }
@@ -178,6 +191,7 @@ watch(activePartId, (id) => {
     editFilename.value = ''
     editTitle.value = ''
     editMarkers.value = []
+    editScalePercent.value = 100
     editActionPlan.value = emptyActionPlan()
   }
 })
@@ -209,6 +223,7 @@ function resetAddForm(): void {
   newFilename.value = ''
   newTitle.value = ''
   newMarkers.value = []
+  newScalePercent.value = 100
   newActionPlan.value = emptyActionPlan()
 }
 
@@ -247,12 +262,12 @@ async function onAdd(): Promise<void> {
       localError.value = err
       return
     }
-    emit('add', 'action', serializeActionPlan(newActionPlan.value), '', '', [])
+    emit('add', 'action', serializeActionPlan(newActionPlan.value), '', '', [], 1)
     finishAdd()
     return
   }
   if (isTableType(newType.value)) {
-    emit('add', 'table', '', '', '', [])
+    emit('add', 'table', '', '', '', [], 1)
     finishAdd()
     return
   }
@@ -273,6 +288,7 @@ async function onAdd(): Promise<void> {
     newFilename.value.trim(),
     isImageType(newType.value) ? newTitle.value.trim() : '',
     isImageType(newType.value) ? newMarkers.value : [],
+    isImageType(newType.value) ? percentToScale(newScalePercent.value) : 1,
   )
   finishAdd()
 }
@@ -344,7 +360,7 @@ async function onSaveEdit(): Promise<void> {
     }
     saving.value = true
     try {
-      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '', '', [])
+      emit('update', part, part.ptype, serializeActionPlan(editActionPlan.value), '', '', [], 1)
       closeSheet()
     } finally {
       saving.value = false
@@ -369,6 +385,7 @@ async function onSaveEdit(): Promise<void> {
       editFilename.value.trim(),
       isImageType(part.ptype) ? editTitle.value.trim() : '',
       isImageType(part.ptype) ? editMarkers.value : [],
+      isImageType(part.ptype) ? percentToScale(editScalePercent.value) : 1,
     )
     closeSheet()
   } finally {
@@ -430,6 +447,7 @@ function onOverlayClick(): void {
                 :data="part.data"
                 :title="part.title"
                 :markers="part.markers ?? []"
+                :image-scale="part.image_scale ?? 1"
               />
             </template>
             <template v-else-if="part.ptype === 'binary'">
@@ -482,6 +500,7 @@ function onOverlayClick(): void {
                 :filename="activePart.filename"
                 show-filename
                 :markers="activePart.markers ?? []"
+                :image-scale="activePart.image_scale ?? 1"
               />
             </template>
             <template v-else-if="activePart.ptype === 'binary'">
@@ -577,6 +596,20 @@ function onOverlayClick(): void {
                   placeholder="任意"
                 />
               </label>
+              <label class="table-title-field">
+                表示倍率
+                <div class="image-scale-field">
+                  <input
+                    v-model.number="editScalePercent"
+                    type="number"
+                    min="25"
+                    max="400"
+                    step="5"
+                    class="table-title-input image-scale-input"
+                  />
+                  <span class="image-scale-suffix">%</span>
+                </div>
+              </label>
               <p v-if="editFilename" class="binary-filename">{{ editFilename }}</p>
               <p v-if="editData" class="binary-hint">約 {{ formatByteSize(editData.length) }}</p>
               <button
@@ -591,6 +624,7 @@ function onOverlayClick(): void {
                 :ptype="activePart.ptype as 'jpeg' | 'png'"
                 :data="editData"
                 :markers="editMarkers"
+                :image-scale="percentToScale(editScalePercent)"
                 editable
                 @update:markers="editMarkers = $event"
               />
@@ -666,6 +700,20 @@ function onOverlayClick(): void {
             placeholder="任意"
           />
         </label>
+        <label v-if="isImageType(newType)" class="table-title-field">
+          表示倍率
+          <div class="image-scale-field">
+            <input
+              v-model.number="newScalePercent"
+              type="number"
+              min="25"
+              max="400"
+              step="5"
+              class="table-title-input image-scale-input"
+            />
+            <span class="image-scale-suffix">%</span>
+          </div>
+        </label>
         <textarea
           v-else-if="!isBinaryType(newType)"
           v-model="newData"
@@ -682,6 +730,7 @@ function onOverlayClick(): void {
           :data="newData"
           :title="newTitle"
           :markers="newMarkers"
+          :image-scale="percentToScale(newScalePercent)"
           editable
           @update:markers="newMarkers = $event"
         />

@@ -543,6 +543,10 @@ textarea {
   display: block;
 }
 
+.image-part-frame .part-image {
+  max-width: none;
+}
+
 .part-image--placeable {
   cursor: crosshair;
 }
@@ -551,10 +555,43 @@ textarea {
   width: 100%;
 }
 
-.image-part-frame {
+.image-part-canvas {
   position: relative;
-  display: inline-block;
+  width: 100%;
   max-width: 100%;
+  overflow: visible;
+}
+
+.image-part-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.image-part-frame .part-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.image-part-canvas .image-marker-pin {
+  z-index: 1;
+}
+
+.image-scale-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.image-scale-input {
+  width: 5.5rem;
+}
+
+.image-scale-suffix {
+  font-size: 0.875rem;
+  color: #52525b;
 }
 
 .image-marker-toolbar {

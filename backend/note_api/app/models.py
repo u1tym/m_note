@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from note_api.app.database import Base
@@ -71,6 +71,7 @@ class Part(Base):
     filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
     title: Mapped[str] = mapped_column(Text, nullable=False, default="")
     markers: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    image_scale: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
 
 class PartRevision(Base):

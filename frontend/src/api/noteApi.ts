@@ -115,6 +115,7 @@ export async function createPart(
   filename = '',
   title = '',
   markers: ImageMarker[] = [],
+  imageScale = 1,
 ): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/create', {
     file_id: fileId,
@@ -123,6 +124,7 @@ export async function createPart(
     filename,
     title,
     markers,
+    image_scale: imageScale,
   })
 }
 
@@ -133,6 +135,7 @@ export async function updatePart(
   filename?: string,
   title?: string,
   markers?: ImageMarker[],
+  imageScale?: number,
 ): Promise<ResultResponse> {
   return postNote<ResultResponse>('/parts/update', {
     parts_id: partsId,
@@ -141,6 +144,7 @@ export async function updatePart(
     ...(filename !== undefined ? { filename } : {}),
     ...(title !== undefined ? { title } : {}),
     ...(markers !== undefined ? { markers } : {}),
+    ...(imageScale !== undefined ? { image_scale: imageScale } : {}),
   })
 }
 

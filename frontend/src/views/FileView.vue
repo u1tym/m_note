@@ -50,9 +50,18 @@ async function onAddPart(
   filename: string,
   title: string,
   markers: ImageMarker[],
+  imageScale: number,
 ): Promise<void> {
   try {
-    const res = await createPart(numericFileId.value, type, data, filename, title, markers)
+    const res = await createPart(
+      numericFileId.value,
+      type,
+      data,
+      filename,
+      title,
+      markers,
+      imageScale,
+    )
     if (!res.result) {
       throw new Error(res.reason ?? 'パーツ作成に失敗しました')
     }
@@ -69,9 +78,10 @@ async function onUpdatePart(
   filename: string,
   title: string,
   markers: ImageMarker[],
+  imageScale: number,
 ): Promise<void> {
   try {
-    const res = await updatePart(part.id, type, data, filename, title, markers)
+    const res = await updatePart(part.id, type, data, filename, title, markers, imageScale)
     if (!res.result) {
       throw new Error(res.reason ?? 'パーツ更新に失敗しました')
     }

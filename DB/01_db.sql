@@ -89,6 +89,7 @@ create table note.parts (
     filename   text            not null default '',
     title      text            not null default '',
     markers    text            not null default '[]',
+    image_scale real           not null default 1.0,
 
     constraint fk_note_parts_aid
         foreign key (aid)

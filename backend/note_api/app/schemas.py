@@ -70,6 +70,7 @@ class PartInfo(BaseModel):
     filename: str
     title: str
     markers: list[ImageMarkerItem] = []
+    image_scale: float = 1.0
     is_del: bool
     revisions: list["PartRevisionSummary"] = []
 
@@ -165,6 +166,7 @@ class PartCreateRequest(BaseModel):
     filename: str = ""
     title: str = ""
     markers: list[ImageMarkerItem] = []
+    image_scale: float = 1.0
 
     model_config = {"populate_by_name": True}
 
@@ -180,6 +182,7 @@ class PartUpdateRequest(BaseModel):
     filename: str | None = None
     title: str | None = None
     markers: list[ImageMarkerItem] | None = None
+    image_scale: float | None = None
 
     model_config = {"populate_by_name": True}
 
