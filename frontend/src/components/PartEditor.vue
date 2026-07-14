@@ -24,6 +24,8 @@ import { cloneMarkers } from '../utils/imageMarkers'
 import { percentToScale, scaleToPercent } from '../utils/imageScale'
 import ActionPlanEditor from './ActionPlanEditor.vue'
 import ActionPlanView from './ActionPlanView.vue'
+import ChecklistEditor from './ChecklistEditor.vue'
+import ChecklistView from './ChecklistView.vue'
 import ImagePartView from './ImagePartView.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
 import TableEditor from './TableEditor.vue'
@@ -85,6 +87,7 @@ const partTypeOptions: { value: PartsType; label: string }[] = [
   { value: 'url', label: 'URL' },
   { value: 'action', label: '行動予定' },
   { value: 'table', label: '表' },
+  { value: 'checklist', label: 'チェックリスト' },
   { value: 'jpeg', label: 'JPEG' },
   { value: 'png', label: 'PNG' },
   { value: 'binary', label: 'バイナリ' },
@@ -112,14 +115,31 @@ function isTableType(type: PartsType): boolean {
   return type === 'table'
 }
 
+function isChecklistType(type: PartsType): boolean {
+  return type === 'checklist'
+}
+
+function isSideEntityPart(type: PartsType): boolean {
+  return isTableType(type) || isChecklistType(type)
+}
+
 function tableIdFromPart(data: string): number {
   return Number.parseInt(data, 10)
 }
 
+function checklistIdFromPart(data: string): number {
+  return Number.parseInt(data, 10)
+}
+
 const tableRefreshTokens = ref<Record<number, number>>({})
+const checklistRefreshTokens = ref<Record<number, number>>({})
 
 function tableRefreshToken(tableId: number): number {
   return tableRefreshTokens.value[tableId] ?? 0
+}
+
+function checklistRefreshToken(checklistId: number): number {
+  return checklistRefreshTokens.value[checklistId] ?? 0
 }
 
 function bumpTableRefresh(tableId: number): void {
@@ -129,14 +149,28 @@ function bumpTableRefresh(tableId: number): void {
   }
 }
 
+function bumpChecklistRefresh(checklistId: number): void {
+  checklistRefreshTokens.value = {
+    ...checklistRefreshTokens.value,
+    [checklistId]: checklistRefreshToken(checklistId) + 1,
+  }
+}
+
 function onTableUpdated(tableId: number): void {
   bumpTableRefresh(tableId)
 }
 
-function backToTablePreview(): void {
+function onChecklistUpdated(checklistId: number): void {
+  bumpChecklistRefresh(checklistId)
+}
+
+function backToSideEntityPreview(): void {
   const part = activePart.value
   if (part?.ptype === 'table') {
     bumpTableRefresh(tableIdFromPart(part.data))
+  }
+  if (part?.ptype === 'checklist') {
+    bumpChecklistRefresh(checklistIdFromPart(part.data))
   }
   sheetMode.value = 'actions'
 }
@@ -155,6 +189,9 @@ function closeSheet(): void {
   const part = activePart.value
   if (part?.ptype === 'table') {
     bumpTableRefresh(tableIdFromPart(part.data))
+  }
+  if (part?.ptype === 'checklist') {
+    bumpChecklistRefresh(checklistIdFromPart(part.data))
   }
   activePartId.value = null
   sheetMode.value = 'actions'
@@ -201,7 +238,7 @@ watch(newType, (type) => {
     newActionPlan.value = emptyActionPlan()
     newData.value = ''
   }
-  if (type === 'table') {
+  if (type === 'table' || type === 'checklist') {
     newData.value = ''
   }
   if (!isImageType(type)) {
@@ -268,6 +305,11 @@ async function onAdd(): Promise<void> {
   }
   if (isTableType(newType.value)) {
     emit('add', 'table', '', '', '', [], 1)
+    finishAdd()
+    return
+  }
+  if (isChecklistType(newType.value)) {
+    emit('add', 'checklist', '', '', '', [], 1)
     finishAdd()
     return
   }
@@ -465,6 +507,12 @@ function onOverlayClick(): void {
                 :refresh-token="tableRefreshToken(tableIdFromPart(part.data))"
               />
             </template>
+            <template v-else-if="part.ptype === 'checklist'">
+              <ChecklistView
+                :checklist-id="checklistIdFromPart(part.data)"
+                :refresh-token="checklistRefreshToken(checklistIdFromPart(part.data))"
+              />
+            </template>
             <template v-else-if="part.ptype === 'md'">
               <MarkdownPreview :source="part.data" />
             </template>
@@ -526,6 +574,12 @@ function onOverlayClick(): void {
                 :refresh-token="tableRefreshToken(tableIdFromPart(activePart.data))"
               />
             </template>
+            <template v-else-if="activePart.ptype === 'checklist'">
+              <ChecklistView
+                :checklist-id="checklistIdFromPart(activePart.data)"
+                :refresh-token="checklistRefreshToken(checklistIdFromPart(activePart.data))"
+              />
+            </template>
             <template v-else-if="activePart.ptype === 'md'">
               <MarkdownPreview :source="activePart.data" />
             </template>
@@ -584,6 +638,12 @@ function onOverlayClick(): void {
               <TableEditor
                 :table-id="tableIdFromPart(activePart.data)"
                 @updated="onTableUpdated(tableIdFromPart(activePart.data))"
+              />
+            </template>
+            <template v-else-if="isChecklistType(activePart.ptype)">
+              <ChecklistEditor
+                :checklist-id="checklistIdFromPart(activePart.data)"
+                @updated="onChecklistUpdated(checklistIdFromPart(activePart.data))"
               />
             </template>
             <template v-else-if="isImageType(activePart.ptype)">
@@ -656,8 +716,8 @@ function onOverlayClick(): void {
           </div>
 
           <div class="part-sheet-actions">
-            <template v-if="isTableType(activePart.ptype)">
-              <button type="button" @click="backToTablePreview">プレビューへ</button>
+            <template v-if="isSideEntityPart(activePart.ptype)">
+              <button type="button" @click="backToSideEntityPreview">プレビューへ</button>
             </template>
             <template v-else>
               <button type="button" class="primary" :disabled="saving" @click="onSaveEdit">
@@ -691,6 +751,9 @@ function onOverlayClick(): void {
           @update:model-value="onNewActionPlanUpdate"
         />
         <p v-else-if="isTableType(newType)" class="table-add-hint">5×5 の空の表を作成します。</p>
+        <p v-else-if="isChecklistType(newType)" class="table-add-hint">
+          空のチェックリストを作成します。
+        </p>
         <label v-else-if="isImageType(newType)" class="table-title-field">
           タイトル
           <input
@@ -715,12 +778,17 @@ function onOverlayClick(): void {
           </div>
         </label>
         <textarea
-          v-else-if="!isBinaryType(newType)"
+          v-if="
+            !isActionType(newType) &&
+            !isSideEntityPart(newType) &&
+            !isImageType(newType) &&
+            !isBinaryType(newType)
+          "
           v-model="newData"
           rows="4"
           :placeholder="newType === 'url' ? 'https://...' : '内容を入力'"
         />
-        <div v-else class="binary-upload">
+        <div v-else-if="isBinaryType(newType)" class="binary-upload">
           <button type="button" @click="onPickBinaryFileForNew">ファイルを選択</button>
           <span v-if="newFilename">{{ newFilename }}（約 {{ formatByteSize(newData.length) }}）</span>
         </div>

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from note_api.app.action_plan import validate_action_plan_data
 from note_api.app.image_markers import markers_for_response, resolve_part_markers_db
 from note_api.app.image_scale import resolve_part_image_scale
-from note_api.app.services import table_service
+from note_api.app.services import checklist_service, table_service
 from note_api.app.config import get_settings
 from note_api.app.models import File, Folder, Part, PartRevision
 from note_api.app.schemas import (
@@ -46,6 +46,10 @@ def _validate_data_for_type(db: Session, aid: int, ptype: str, data: str) -> Res
         if not data.strip():
             return None
         return table_service.validate_table_part_data(db, aid, data)
+    if ptype == "checklist":
+        if not data.strip():
+            return None
+        return checklist_service.validate_checklist_part_data(db, aid, data)
     return None
 
 
@@ -736,6 +740,11 @@ def create_part(
             return _fail("table パーツ作成時の data は空である必要があります")
         table_row = table_service.create_table_for_part(db, aid)
         part_data = str(table_row.id)
+    elif ptype == "checklist":
+        if data.strip():
+            return _fail("checklist パーツ作成時の data は空である必要があります")
+        checklist_row = checklist_service.create_checklist_for_part(db, aid)
+        part_data = str(checklist_row.id)
 
     markers_db, invalid = resolve_part_markers_db(ptype, markers)
     if invalid is not None:
@@ -794,6 +803,8 @@ def update_part(
 
     if ptype == "table" and part.ptype != "table":
         return _fail("既存パーツの種別を table に変更することはできません")
+    if ptype == "checklist" and part.ptype != "checklist":
+        return _fail("既存パーツの種別を checklist に変更することはできません")
 
     content_changed = part.data != data or part.ptype != ptype or part.filename != new_filename
     if _is_versioned_part_type(part.ptype) and content_changed:

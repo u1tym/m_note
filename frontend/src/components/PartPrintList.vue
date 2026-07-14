@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import type { PartInfo } from '../api/types'
 import ActionPlanView from './ActionPlanView.vue'
+import ChecklistView from './ChecklistView.vue'
 import ImagePartView from './ImagePartView.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
 import TableView from './TableView.vue'
@@ -19,6 +20,10 @@ const emit = defineEmits<{
 const sortedParts = computed(() => [...props.parts].sort((a, b) => a.dorder - b.dorder))
 
 function tableIdFromPart(data: string): number {
+  return Number.parseInt(data, 10)
+}
+
+function checklistIdFromPart(data: string): number {
   return Number.parseInt(data, 10)
 }
 
@@ -54,6 +59,9 @@ function onTableLoaded(part: PartInfo): void {
             :table-id="tableIdFromPart(part.data)"
             @loaded="onTableLoaded(part)"
           />
+        </template>
+        <template v-else-if="part.ptype === 'checklist'">
+          <ChecklistView :checklist-id="checklistIdFromPart(part.data)" />
         </template>
         <template v-else-if="part.ptype === 'md'">
           <MarkdownPreview :source="part.data" />

@@ -1,5 +1,16 @@
 /** パーツ種別（DB: note.parts_type） */
-export type PartsType = 'jpeg' | 'png' | 'text' | 'tex' | 'md' | 'binary' | 'url' | 'action' | 'table'
+export type PartsType =
+  | 'jpeg'
+  | 'png'
+  | 'text'
+  | 'tex'
+  | 'md'
+  | 'binary'
+  | 'url'
+  | 'action'
+  | 'table'
+  | 'checklist'
+
 
 export interface ResultResponse {
   result: boolean
@@ -116,6 +127,33 @@ export interface TableMutationResponse {
   col_count: number
   col_widths: TableColWidthItem[]
   cells: TableCellItem[]
+}
+
+export interface ChecklistItemItem {
+  id: number
+  title: string
+  is_checked: boolean
+  dorder: number
+}
+
+export interface ChecklistCategoryItem {
+  id: number
+  name: string
+  is_unnamed: boolean
+  dorder: number
+  items: ChecklistItemItem[]
+}
+
+export interface ChecklistGetResponse {
+  checklist_id: number
+  title: string
+  categories: ChecklistCategoryItem[]
+}
+
+export interface ChecklistMutationResponse {
+  checklist_id: number
+  title: string
+  categories: ChecklistCategoryItem[]
 }
 
 export interface MeResponse {

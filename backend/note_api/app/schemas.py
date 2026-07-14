@@ -2,7 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-PartsType = Literal["jpeg", "png", "text", "tex", "md", "binary", "url", "action", "table"]
+PartsType = Literal[
+    "jpeg", "png", "text", "tex", "md", "binary", "url", "action", "table", "checklist"
+]
 ImageMarkerKind = Literal["house", "number"]
 
 
@@ -282,3 +284,86 @@ class TableColWidthUpdateRequest(BaseModel):
     table_id: int
     x: int
     width_px: int | None = None
+
+
+# --- Checklist ---
+class ChecklistGetRequest(BaseModel):
+    checklist_id: int
+
+
+class ChecklistItemItem(BaseModel):
+    id: int
+    title: str
+    is_checked: bool
+    dorder: int
+
+
+class ChecklistCategoryItem(BaseModel):
+    id: int
+    name: str
+    is_unnamed: bool
+    dorder: int
+    items: list[ChecklistItemItem]
+
+
+class ChecklistGetResponse(BaseModel):
+    checklist_id: int
+    title: str
+    categories: list[ChecklistCategoryItem]
+
+
+class ChecklistMutationResponse(BaseModel):
+    checklist_id: int
+    title: str
+    categories: list[ChecklistCategoryItem]
+
+
+class ChecklistTitleUpdateRequest(BaseModel):
+    checklist_id: int
+    title: str
+
+
+class ChecklistCategoryCreateRequest(BaseModel):
+    checklist_id: int
+    name: str
+
+
+class ChecklistCategoryUpdateRequest(BaseModel):
+    checklist_id: int
+    category_id: int
+    name: str
+
+
+class ChecklistCategoryDeleteRequest(BaseModel):
+    checklist_id: int
+    category_id: int
+
+
+class ChecklistCategoryReorderRequest(BaseModel):
+    checklist_id: int
+    ordered_ids: list[int]
+
+
+class ChecklistItemCreateRequest(BaseModel):
+    checklist_id: int
+    category_id: int | None = None
+    title: str = ""
+
+
+class ChecklistItemUpdateRequest(BaseModel):
+    checklist_id: int
+    item_id: int
+    title: str | None = None
+    is_checked: bool | None = None
+
+
+class ChecklistItemDeleteRequest(BaseModel):
+    checklist_id: int
+    item_id: int
+
+
+class ChecklistItemMoveRequest(BaseModel):
+    checklist_id: int
+    item_id: int
+    to_category_id: int
+    to_index: int

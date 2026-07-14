@@ -1,5 +1,7 @@
 import { postNote } from './noteClient'
 import type {
+  ChecklistGetResponse,
+  ChecklistMutationResponse,
   FileGetResponse,
   ImageMarker,
   ItemsListResponse,
@@ -277,5 +279,111 @@ export async function deleteTableCol(
   return postNote<TableMutationResponse>('/table/cols/delete', {
     table_id: tableId,
     at_col: atCol,
+  })
+}
+
+export async function getChecklist(checklistId: number): Promise<ChecklistGetResponse> {
+  return postNote<ChecklistGetResponse>('/checklist/get', { checklist_id: checklistId })
+}
+
+export async function updateChecklistTitle(
+  checklistId: number,
+  title: string,
+): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/title/update', {
+    checklist_id: checklistId,
+    title,
+  })
+}
+
+export async function createChecklistCategory(
+  checklistId: number,
+  name: string,
+): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/categories/create', {
+    checklist_id: checklistId,
+    name,
+  })
+}
+
+export async function updateChecklistCategory(
+  checklistId: number,
+  categoryId: number,
+  name: string,
+): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/categories/update', {
+    checklist_id: checklistId,
+    category_id: categoryId,
+    name,
+  })
+}
+
+export async function deleteChecklistCategory(
+  checklistId: number,
+  categoryId: number,
+): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/categories/delete', {
+    checklist_id: checklistId,
+    category_id: categoryId,
+  })
+}
+
+export async function reorderChecklistCategories(
+  checklistId: number,
+  orderedIds: number[],
+): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/categories/reorder', {
+    checklist_id: checklistId,
+    ordered_ids: orderedIds,
+  })
+}
+
+export async function createChecklistItem(params: {
+  checklistId: number
+  categoryId?: number | null
+  title?: string
+}): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/items/create', {
+    checklist_id: params.checklistId,
+    category_id: params.categoryId ?? null,
+    title: params.title ?? '',
+  })
+}
+
+export async function updateChecklistItem(params: {
+  checklistId: number
+  itemId: number
+  title?: string | null
+  isChecked?: boolean | null
+}): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/items/update', {
+    checklist_id: params.checklistId,
+    item_id: params.itemId,
+    title: params.title ?? null,
+    is_checked: params.isChecked ?? null,
+  })
+}
+
+export async function deleteChecklistItem(
+  checklistId: number,
+  itemId: number,
+): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/items/delete', {
+    checklist_id: checklistId,
+    item_id: itemId,
+  })
+}
+
+export async function moveChecklistItem(params: {
+  checklistId: number
+  itemId: number
+  toCategoryId: number
+  toIndex: number
+}): Promise<ChecklistMutationResponse> {
+  return postNote<ChecklistMutationResponse>('/checklist/items/move', {
+    checklist_id: params.checklistId,
+    item_id: params.itemId,
+    to_category_id: params.toCategoryId,
+    to_index: params.toIndex,
   })
 }

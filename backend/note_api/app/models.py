@@ -5,7 +5,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from note_api.app.database import Base
 
-PARTS_TYPES = ("jpeg", "png", "text", "tex", "md", "binary", "url", "action", "table")
+PARTS_TYPES = (
+    "jpeg",
+    "png",
+    "text",
+    "tex",
+    "md",
+    "binary",
+    "url",
+    "action",
+    "table",
+    "checklist",
+)
 
 
 class Account(Base):
@@ -135,3 +146,44 @@ class TableColWidth(Base):
     )
     x: Mapped[int] = mapped_column(Integer, nullable=False)
     width_px: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class Checklist(Base):
+    __tablename__ = "checklist"
+    __table_args__ = {"schema": "note"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    aid: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class ChecklistCategory(Base):
+    __tablename__ = "checklist_category"
+    __table_args__ = {"schema": "note"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    checklist_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("note.checklist.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    dorder: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class ChecklistItem(Base):
+    __tablename__ = "checklist_item"
+    __table_args__ = {"schema": "note"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    checklist_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("note.checklist.id", ondelete="CASCADE"), nullable=False
+    )
+    category_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("note.checklist_category.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    is_checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    dorder: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

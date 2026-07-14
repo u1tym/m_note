@@ -117,6 +117,16 @@ HTTP **200**。本文は共通形式:
 | E-7 | POST | `/table/cols/delete` | 列削除 |
 | E-8 | POST | `/table/title/update` | 表タイトル更新 |
 | E-9 | POST | `/table/col-width/update` | 列幅更新 |
+| F-1 | POST | `/checklist/get` | チェックリスト取得 |
+| F-2 | POST | `/checklist/title/update` | タイトル更新 |
+| F-3 | POST | `/checklist/categories/create` | カテゴリ作成 |
+| F-4 | POST | `/checklist/categories/update` | カテゴリ名更新 |
+| F-5 | POST | `/checklist/categories/delete` | カテゴリ削除（論理） |
+| F-6 | POST | `/checklist/categories/reorder` | カテゴリ並び替え |
+| F-7 | POST | `/checklist/items/create` | チェック項目作成 |
+| F-8 | POST | `/checklist/items/update` | チェック項目更新 |
+| F-9 | POST | `/checklist/items/delete` | チェック項目削除（論理） |
+| F-10 | POST | `/checklist/items/move` | チェック項目移動／並び替え |
 | — | GET | `/health` | 稼働確認（認証不要） |
 
 ---
@@ -367,7 +377,7 @@ HTTP **200**。本文は共通形式:
 
 **Input:** `{ "file_id": n, "type": "md", "data": "...", "filename": "optional", "title": "optional" }`
 
-- `type`（API）→ DB の `ptype`。許容値: `jpeg` / `png` / `text` / `tex` / `md` / `binary` / `url` / `action` / `table`
+- `type`（API）→ DB の `ptype`。許容値: `jpeg` / `png` / `text` / `tex` / `md` / `binary` / `url` / `action` / `table` / `checklist`
 - `jpeg` / `png` / `binary` のとき `data` は Base64 文字列
 - `jpeg` / `png` / `binary` のとき **`filename` 必須**（空不可）
 - `jpeg` / `png` のとき **`title` 任意**（表示用。省略時は空文字）
@@ -375,8 +385,9 @@ HTTP **200**。本文は共通形式:
 - `jpeg` / `png` のとき **`image_scale` 任意**（表示倍率。省略時は `1.0`。範囲 0.25〜4.0）
 - `action`（行動予定）のとき `data` は **JSON 文字列**（構造は [D-4a](#d-4a-行動予定-action-の-data-形式)）
 - `table`（表）のとき **`data` は空文字**。サーバーが `note.table` を作成し、`parts.data` にその ID を格納する（初期 5×5）
+- `checklist`（チェックリスト）のとき **`data` は空文字**。サーバーが `note.checklist` を作成し、`parts.data` にその ID を格納する（初期はタイトル空・カテゴリ／項目なし）
 
-**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename`・`title` を保存。`jpeg` / `png` 以外では `title` は空文字に正規化する。`action` のときは data の JSON 構造を検証する。`table` のときは [D-4b](#d-4b-表-table) を参照。
+**処理:** `dorder` = 同一ファイル内最大 + 1、`is_deleted = false`、`filename`・`title` を保存。`jpeg` / `png` 以外では `title` は空文字に正規化する。`action` のときは data の JSON 構造を検証する。`table` のときは [D-4b](#d-4b-表-table) を参照。`checklist` のときは [D-4c](#d-4c-チェックリスト-checklist) を参照。
 
 ---
 
@@ -477,6 +488,24 @@ HTTP **200**。本文は共通形式:
 **数式:** `Cell(x,y)` 参照（`$` で絶対座標）、四則演算 `+ - * /`、括弧、`If` / `And` / `Or` / `Not` と比較（`=` `>` `<`）。詳細は `NOTE_SPEC.md`。循環参照は `#CYCLE!`。
 
 **型と数式:** 数値型は数式の結果を数値として表示。文字列型は文字列、日付型は日付、時刻型は時刻、日時型は日時として表示。いずれも結果の型がセル型と一致しない場合は `#VALUE!`。
+
+---
+
+### D-4c. チェックリスト（`checklist`）
+
+`ptype` / `type` が `checklist` のとき、`parts.data` には **`note.checklist.id` の文字列**を格納する。
+
+**パーツ作成時:** `data` は空。サーバーが `note.checklist`（タイトル空）を作成し、生成 ID を `parts.data` に保存する。初期はカテゴリ・項目なし。
+
+**構造**
+
+| 要素 | 説明 |
+|------|------|
+| タイトル | チェックリスト全体。空なら UI 非表示 |
+| カテゴリ | 名称を自由入力。同名不可（生存行）。無名カテゴリ（`name=''`）は最大1つ。見出しは付けず項目のみ表示 |
+| チェック項目 | タイトルとチェック状態。属するカテゴリを持つ |
+
+**論理削除:** カテゴリ／項目の削除は `is_deleted=true`。カテゴリ削除時は配下項目も論理削除。復元 API は提供しない。詳細 API は [5c](#5c-チェックリスト-apif-系)。
 
 ---
 
@@ -631,6 +660,75 @@ HTTP **200**。本文は共通形式:
 **処理:** `note.table_col_width` を更新する。列の挿入・削除時は列幅も座標に合わせてずらす。
 
 **Output:** E-1 と同形式
+
+---
+
+## 5c. チェックリスト API（F 系）
+
+### F-1. 取得
+
+**POST** `/checklist/get`
+
+**Input:** `{ "checklist_id": n }`
+
+**Output**
+
+```json
+{
+  "checklist_id": 1,
+  "title": "買い物",
+  "categories": [
+    {
+      "id": 10,
+      "name": "",
+      "is_unnamed": true,
+      "dorder": 0,
+      "items": [
+        { "id": 100, "title": "牛乳", "is_checked": false, "dorder": 0 }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "日用品",
+      "is_unnamed": false,
+      "dorder": 1,
+      "items": []
+    }
+  ]
+}
+```
+
+削除済みカテゴリ／項目は含まない。無名カテゴリが無い場合は配列に現れない。
+
+---
+
+### F-2. タイトル更新
+
+**POST** `/checklist/title/update` — `{ "checklist_id", "title" }`
+
+---
+
+### F-3〜F-6. カテゴリ
+
+| ID | パス | Input |
+|----|------|-------|
+| F-3 | `/checklist/categories/create` | `{ "checklist_id", "name" }`（空不可・重複不可） |
+| F-4 | `/checklist/categories/update` | `{ "checklist_id", "category_id", "name" }` |
+| F-5 | `/checklist/categories/delete` | `{ "checklist_id", "category_id" }`（配下項目も論理削除） |
+| F-6 | `/checklist/categories/reorder` | `{ "checklist_id", "ordered_ids": [..] }`（生存カテゴリ ID の全件並び） |
+
+---
+
+### F-7〜F-10. チェック項目
+
+| ID | パス | Input |
+|----|------|-------|
+| F-7 | `/checklist/items/create` | `{ "checklist_id", "category_id"?, "title"? }`（`category_id` 省略／null は無名カテゴリへ。無ければ作成） |
+| F-8 | `/checklist/items/update` | `{ "checklist_id", "item_id", "title"?, "is_checked"? }` |
+| F-9 | `/checklist/items/delete` | `{ "checklist_id", "item_id" }` |
+| F-10 | `/checklist/items/move` | `{ "checklist_id", "item_id", "to_category_id", "to_index" }` |
+
+ミューテーション系の Output はいずれも F-1 と同形式。
 
 ---
 

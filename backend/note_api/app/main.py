@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from note_api.app.config import get_settings
-from note_api.app.routers import files, folders, items, parts, tables
+from note_api.app.routers import checklists, files, folders, items, parts, tables
 
 settings = get_settings()
 
@@ -22,6 +22,7 @@ app.include_router(folders.router)
 app.include_router(files.router)
 app.include_router(parts.router)
 app.include_router(tables.router)
+app.include_router(checklists.router)
 
 
 @app.get("/health")

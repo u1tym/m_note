@@ -1592,6 +1592,143 @@ textarea {
   padding: 4px 6px;
 }
 
+.checklist-view,
+.checklist-editor {
+  width: 100%;
+}
+
+.checklist-empty {
+  margin: 0;
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.checklist-category-title {
+  margin: 12px 0 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #18181b;
+}
+
+.checklist-items,
+.checklist-edit-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checklist-item,
+.checklist-edit-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 0;
+}
+
+.checklist-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #a1a1aa;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.checklist-check--on {
+  border-color: #2563eb;
+  background: #2563eb;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+
+.checklist-item-title--checked {
+  text-decoration: line-through;
+  color: #71717a;
+}
+
+.checklist-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.checklist-toolbar button,
+.checklist-add-row button,
+.checklist-icon-btn {
+  border: 1px solid #d4d4d8;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.checklist-toolbar button:disabled,
+.checklist-add-row button:disabled,
+.checklist-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checklist-inline-input {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.checklist-cat-block {
+  margin-bottom: 12px;
+  padding: 8px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.checklist-cat-block.checklist-drop-target {
+  outline: 2px dashed #2563eb;
+}
+
+.checklist-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.checklist-drag-handle {
+  cursor: grab;
+  color: #a1a1aa;
+  user-select: none;
+  padding: 0 2px;
+  font-size: 0.75rem;
+  letter-spacing: -2px;
+}
+
+.checklist-drag-handle:active {
+  cursor: grabbing;
+}
+
+.checklist-category-input,
+.checklist-item-input {
+  flex: 1;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  background: #fff;
+}
+
+.checklist-add-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.checklist-edit-item.checklist-drop-before {
+  box-shadow: inset 0 2px 0 #2563eb;
+}
+
 .print-only {
   display: none;
 }

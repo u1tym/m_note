@@ -44,10 +44,11 @@
 | `url` | URL 文字列 |
 | `action` | 行動予定（`data` は JSON。時刻・地点・経由メモの構造） |
 | `table` | 表（`data` は `note.table.id` の文字列） |
+| `checklist` | チェックリスト（`data` は `note.checklist.id` の文字列） |
 
 ```sql
 create domain note.parts_type as text
-    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action', 'table'));
+    check (value in ('jpeg', 'png', 'text', 'tex', 'md', 'binary', 'url', 'action', 'table', 'checklist'));
 ```
 
 ---
@@ -62,6 +63,9 @@ create domain note.parts_type as text
 | `note.table` | 表パーツの本体（行数・列数） |
 | `note.table_cell` | 表のセル（スパース格納） |
 | `note.table_col_width` | 表の列幅（スパース格納） |
+| `note.checklist` | チェックリスト本体 |
+| `note.checklist_category` | チェックリストのカテゴリ |
+| `note.checklist_item` | チェック項目 |
 
 ---
 
@@ -215,7 +219,49 @@ create domain note.parts_type as text
 
 ---
 
-## 11. `note.parts_revision`（パーツ過去世代）
+## 11. `note.checklist`（チェックリスト）
+
+チェックリストパーツ 1 件につき 1 行。
+
+| カラム | 型 | NULL | 既定値 | 説明 |
+|--------|-----|------|--------|------|
+| `id` | serial | NOT NULL | — | 主キー |
+| `aid` | integer | NOT NULL | — | アカウント ID |
+| `title` | text | NOT NULL | `''` | タイトル（空なら表示しない） |
+
+---
+
+## 12. `note.checklist_category`（カテゴリ）
+
+| カラム | 型 | NULL | 既定値 | 説明 |
+|--------|-----|------|--------|------|
+| `id` | serial | NOT NULL | — | 主キー |
+| `checklist_id` | integer | NOT NULL | — | → `note.checklist(id)` ON DELETE CASCADE |
+| `name` | text | NOT NULL | `''` | カテゴリ名。空文字は無名カテゴリ（チェックリスト内に生存行は最大1） |
+| `dorder` | integer | NOT NULL | `0` | 表示順 |
+| `is_deleted` | boolean | NOT NULL | `false` | 論理削除 |
+
+**一意制約（生存行のみ）:** `(checklist_id, name) WHERE is_deleted = false`
+
+カテゴリ削除時は配下の `checklist_item` も論理削除する。
+
+---
+
+## 13. `note.checklist_item`（チェック項目）
+
+| カラム | 型 | NULL | 既定値 | 説明 |
+|--------|-----|------|--------|------|
+| `id` | serial | NOT NULL | — | 主キー |
+| `checklist_id` | integer | NOT NULL | — | → `note.checklist(id)` ON DELETE CASCADE |
+| `category_id` | integer | NOT NULL | — | → `note.checklist_category(id)` ON DELETE CASCADE |
+| `title` | text | NOT NULL | `''` | 項目タイトル |
+| `is_checked` | boolean | NOT NULL | `false` | チェック状態 |
+| `dorder` | integer | NOT NULL | `0` | カテゴリ内の表示順 |
+| `is_deleted` | boolean | NOT NULL | `false` | 論理削除 |
+
+---
+
+## 14. `note.parts_revision`（パーツ過去世代）
 
 `jpeg` / `png` / `binary` パーツを **置き換え（update）** する直前に、変更前の内容をスナップショットとして保存する。保持件数は環境変数 `PARTS_MAX_REVISIONS`（既定 `3`）。超過分は古い世代から削除する。
 
@@ -254,6 +300,9 @@ accounts (public)
     ├──< note.table (aid)
     │         └──< note.table_cell (table_id)
     │         └──< note.table_col_width (table_id)
+    ├──< note.checklist (aid)
+    │         └──< note.checklist_category (checklist_id)
+    │                   └──< note.checklist_item (category_id)
     │
     └──< note.parts (aid) ── file ──> note.file
               │ data → note.table.id (ptype=table)
